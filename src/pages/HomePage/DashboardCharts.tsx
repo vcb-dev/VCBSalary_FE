@@ -1,0 +1,482 @@
+import { useState } from 'react'
+import { useQueries } from '@tanstack/react-query'
+import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import type { Paginated } from '@/api/access-control'
+import type { Department, Team } from '@/api/organization'
+import type { PayrollPeriod } from '@/api/payroll-periods'
+import { listRevenue, type EmployeeRevenue } from '@/api/revenue'
+import { listSalaryRecords, type SalaryListItem } from '@/api/salary'
+import { listTraffic, type TrafficListItem } from '@/api/traffic'
+import { Card, CardContent } from '@/components/ui/card'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Skeleton } from '@/components/ui/skeleton'
+import { formatCompactMoney, formatMoney, formatNumber, sumAmounts } from '@/lib/format'
+
+type Metric = 'salary' | 'revenue' | 'traffic'
+type PeriodData = { salaries: SalaryListItem[]; revenues: EmployeeRevenue[]; traffic: TrafficListItem[]; failedMetrics?: Metric[] }
+type TeamTotal = { id: string; name: string; salary: number; revenue: number; traffic: number }
+
+const METRICS: Record<Metric, { label: string; shortLabel: string; color: string; unit: string }> = {
+  salary: { label: 'Quỹ lương', shortLabel: 'Lương', color: '#1769a6', unit: '₫' },
+  revenue: { label: 'Doanh thu', shortLabel: 'Doanh thu', color: '#12846a', unit: '₫' },
+  traffic: { label: 'Traffic hợp lệ', shortLabel: 'Traffic', color: '#bc762d', unit: 'views' },
+}
+const PIE_COLORS = ['#1769a6', '#12846a', '#bc762d', '#775aab', '#cf6679', '#43889a', '#7b8f37', '#b15e45', '#5772bc', '#946b83']
+
+function amount(value: string | null | undefined) {
+  const number = Number(value)
+  return Number.isFinite(number) ? number : 0
+}
+
+function metricValue(data: PeriodData, metric: Metric, departmentId: string, teamId: string, teamDepartments: Map<string, string>) {
+  if (data.failedMetrics?.includes(metric)) return null
+  const inScope = (item: { teamId: string | null }) => teamId !== 'all'
+    ? item.teamId === teamId
+    : departmentId === 'all' || (item.teamId !== null && teamDepartments.get(item.teamId) === departmentId)
+  if (metric === 'salary') return sumAmounts(data.salaries.filter(inScope).map((item) => item.salaryRecord?.totalSalaryAmount))
+  if (metric === 'revenue') return sumAmounts(data.revenues.filter(inScope).map((item) => item.officialRevenueAmount))
+  return sumAmounts(data.traffic.filter(inScope).map((item) => item.acceptedViews))
+}
+
+function formatMetric(value: number, metric: Metric) {
+  return metric === 'traffic' ? `${formatNumber(value)} views` : formatMoney(value)
+}
+
+function formatAxis(value: number, metric: Metric) {
+  if (metric !== 'traffic') return formatCompactMoney(value).replace(' ₫', '')
+  if (Math.abs(value) >= 1_000_000) return `${(value / 1_000_000).toLocaleString('vi-VN', { maximumFractionDigits: 1 })}tr`
+  if (Math.abs(value) >= 1_000) return `${(value / 1_000).toLocaleString('vi-VN', { maximumFractionDigits: 1 })}k`
+  return formatNumber(value)
+}
+
+function percentage(value: number, total: number) {
+  return total > 0 ? (value / total) * 100 : 0
+}
+
+async function loadAllPages<T>(fetchPage: (page: number) => Promise<Paginated<T>>) {
+  const first = await fetchPage(1)
+  if (first.meta.totalPages <= 1) return first.data
+  const rest = await Promise.all(Array.from({ length: first.meta.totalPages - 1 }, (_, index) => fetchPage(index + 2)))
+  return [first, ...rest].flatMap((page) => page.data)
+}
+
+function groupTeams(data: PeriodData) {
+  const grouped = new Map<string, TeamTotal>()
+  function ensure(id: string | null, name: string | null) {
+    const key = id ?? 'unassigned'
+    let row = grouped.get(key)
+    if (!row) {
+      row = { id: key, name: name ?? 'Chưa gán team', salary: 0, revenue: 0, traffic: 0 }
+      grouped.set(key, row)
+    }
+    return row
+  }
+  data.salaries.forEach((item) => {
+    const row = ensure(item.teamId, item.teamName)
+    row.salary += amount(item.salaryRecord?.totalSalaryAmount)
+  })
+  data.revenues.forEach((item) => {
+    const row = ensure(item.teamId, item.teamName)
+    row.revenue += amount(item.officialRevenueAmount)
+  })
+  data.traffic.forEach((item) => {
+    const row = ensure(item.teamId, item.teamName)
+    row.traffic += amount(item.acceptedViews)
+  })
+  return Array.from(grouped.values())
+}
+
+export function DashboardCharts({
+  periods, period, departmentId, selectedDepartmentName, teamId, selectedTeamName, departments, organizationTeams, salaries, revenues, traffic,
+  canViewSalary, canViewRevenue, canViewTraffic, showRankings,
+}: {
+  periods: PayrollPeriod[]
+  period: PayrollPeriod
+  departmentId: string
+  selectedDepartmentName?: string
+  teamId: string
+  selectedTeamName?: string
+  departments: Department[]
+  organizationTeams: Team[]
+  salaries: SalaryListItem[]
+  revenues: EmployeeRevenue[]
+  traffic: TrafficListItem[]
+  canViewSalary: boolean
+  canViewRevenue: boolean
+  canViewTraffic: boolean
+  showRankings: boolean
+}) {
+  const available = (['salary', 'revenue', 'traffic'] as const).filter((metric) =>
+    metric === 'salary' ? canViewSalary : metric === 'revenue' ? canViewRevenue : canViewTraffic,
+  )
+  const [chosenMetric, setChosenMetric] = useState<Metric>('revenue')
+  const [chosenEmployeeId, setChosenEmployeeId] = useState('')
+  const metric = available.includes(chosenMetric) ? chosenMetric : available[0]
+  const currentData = { salaries, revenues, traffic }
+  const teamDepartments = new Map(organizationTeams.map((item) => [item.id, item.departmentId]))
+  const departmentNames = new Map(departments.map((item) => [item.id, item.name]))
+  const chronological = [...periods].sort((a, b) => a.startDate.localeCompare(b.startDate))
+  const currentIndex = chronological.findIndex((item) => item.id === period.id)
+  const timeline = chronological
+  const dashboardYear = period.payrollYear
+  const history = timeline.filter((item) => item.id !== period.id)
+  const historyQueries = useQueries({
+    queries: history.map((item) => ({
+      queryKey: ['dashboard-chart-history', item.id, canViewSalary, canViewRevenue, canViewTraffic],
+      queryFn: async (): Promise<PeriodData> => {
+        const [historySalaries, historyRevenues, historyTraffic] = await Promise.allSettled([
+          canViewSalary ? loadAllPages((page) => listSalaryRecords(item.id, { page, pageSize: 100 })) : Promise.resolve([]),
+          canViewRevenue ? loadAllPages((page) => listRevenue(item.id, { page, pageSize: 100 })) : Promise.resolve([]),
+          canViewTraffic ? loadAllPages((page) => listTraffic(item.id, { page, pageSize: 100 })) : Promise.resolve([]),
+        ])
+        return {
+          salaries: historySalaries.status === 'fulfilled' ? historySalaries.value : [],
+          revenues: historyRevenues.status === 'fulfilled' ? historyRevenues.value : [],
+          traffic: historyTraffic.status === 'fulfilled' ? historyTraffic.value : [],
+          failedMetrics: [
+            historySalaries.status === 'rejected' ? 'salary' : null,
+            historyRevenues.status === 'rejected' ? 'revenue' : null,
+            historyTraffic.status === 'rejected' ? 'traffic' : null,
+          ].filter((metric): metric is Metric => metric !== null),
+        }
+      },
+      staleTime: 60_000,
+      retry: 1,
+    })),
+  })
+  const trend = timeline.map((item) => {
+    const queryIndex = history.findIndex((previous) => previous.id === item.id)
+    const data = queryIndex === -1 ? currentData : historyQueries[queryIndex].data
+    return {
+      id: item.id,
+      name: item.name,
+      label: `T${String(item.payrollMonth).padStart(2, '0')}`,
+      value: data ? metricValue(data, metric, departmentId, teamId, teamDepartments) : null,
+    }
+  })
+  const salaryTrend = timeline.map((item) => {
+    const queryIndex = history.findIndex((previous) => previous.id === item.id)
+    const data = queryIndex === -1 ? currentData : historyQueries[queryIndex].data
+    return { id: item.id, name: item.name, label: `T${String(item.payrollMonth).padStart(2, '0')}`, value: data ? metricValue(data, 'salary', departmentId, teamId, teamDepartments) : null }
+  })
+  const historyLoading = historyQueries.some((query) => query.isPending)
+  const historyFailed = historyQueries.some((query) => query.isError || Boolean(query.data?.failedMetrics?.length))
+  const annualMetricTotal = trend.reduce((sum, item) => sum + (item.value ?? 0), 0)
+  const teams = groupTeams(currentData).filter((item) => teamId !== 'all'
+    ? item.id === teamId
+    : departmentId === 'all' || teamDepartments.get(item.id) === departmentId)
+  const ranked = [...teams].sort((a, b) => b[metric] - a[metric] || a.name.localeCompare(b.name, 'vi'))
+  const scopedSalaries = salaries.filter((item) => teamId !== 'all'
+    ? item.teamId === teamId
+    : departmentId === 'all' || (item.teamId !== null && teamDepartments.get(item.teamId) === departmentId))
+  const selectableEmployees = scopedSalaries.filter((item) => item.salaryRecord !== null)
+  const topEarners = [...selectableEmployees]
+    .filter((item) => amount(item.salaryRecord?.totalSalaryAmount) > 0)
+    .sort((a, b) => amount(b.salaryRecord?.totalSalaryAmount) - amount(a.salaryRecord?.totalSalaryAmount) || a.employeeName.localeCompare(b.employeeName, 'vi'))
+    .slice(0, 10)
+  const selectedEmployee = selectableEmployees.find((item) => item.employeeId === chosenEmployeeId)
+  const employeeHistoryPeriods = chronological.filter((item) => item.id !== period.id && !history.some((recent) => recent.id === item.id))
+  const employeeHistoryQueries = useQueries({
+    queries: employeeHistoryPeriods.map((item) => ({
+      queryKey: ['dashboard-employee-salary-history', selectedEmployee?.employeeId, item.id],
+      queryFn: async () => {
+        const response = await listSalaryRecords(item.id, { search: selectedEmployee?.employeeCode, pageSize: 100 })
+        return response.data
+      },
+      enabled: Boolean(selectedEmployee),
+      staleTime: 60_000,
+      retry: 1,
+    })),
+  })
+  const employeeTrend = selectedEmployee ? chronological.map((item) => {
+    const recentIndex = history.findIndex((recent) => recent.id === item.id)
+    const olderIndex = employeeHistoryPeriods.findIndex((older) => older.id === item.id)
+    const current = item.id === period.id
+    const recentQuery = recentIndex >= 0 ? historyQueries[recentIndex] : null
+    const olderQuery = olderIndex >= 0 ? employeeHistoryQueries[olderIndex] : null
+    const records = current ? salaries : recentQuery ? recentQuery.data?.salaries : olderQuery?.data
+    const unavailable = Boolean(recentQuery?.data?.failedMetrics?.includes('salary')) || recentQuery?.isError || olderQuery?.isError
+    const record = records?.find((row) => row.employeeId === selectedEmployee.employeeId)?.salaryRecord
+    return {
+      id: item.id,
+      name: item.name,
+      label: `T${String(item.payrollMonth).padStart(2, '0')}`,
+      value: record ? amount(record.totalSalaryAmount) : null,
+      status: unavailable ? 'error' : records === undefined ? 'loading' : record ? 'ready' : 'missing',
+    }
+  }) : []
+  const employeeHistoryLoading = selectedEmployee && employeeTrend.some((item) => item.status === 'loading')
+  const employeeHistoryFailed = employeeTrend.some((item) => item.status === 'error')
+  const employeePreviousSalary = employeeTrend[currentIndex - 1]?.value
+  const employeeCurrentSalary = employeeTrend[currentIndex]?.value
+  const employeeSalaryChange = employeeCurrentSalary !== null && employeeCurrentSalary !== undefined
+    && employeePreviousSalary !== null && employeePreviousSalary !== undefined && employeePreviousSalary > 0
+    ? ((employeeCurrentSalary - employeePreviousSalary) / employeePreviousSalary) * 100
+    : null
+  const salaryGroups = new Map<string, { id: string; name: string; value: number }>()
+  salaries.forEach((item) => {
+    const value = amount(item.salaryRecord?.totalSalaryAmount)
+    if (value <= 0) return
+    const itemDepartmentId = item.teamId ? teamDepartments.get(item.teamId) : undefined
+    if (departmentId !== 'all' && itemDepartmentId !== departmentId) return
+    const id = departmentId === 'all' ? itemDepartmentId ?? 'unknown' : item.teamId ?? 'unknown'
+    const name = departmentId === 'all'
+      ? departmentNames.get(id) ?? 'Chưa xác định phòng ban'
+      : item.teamName ?? organizationTeams.find((team) => team.id === id)?.name ?? 'Chưa gán team'
+    const group = salaryGroups.get(id) ?? { id, name, value: 0 }
+    group.value += value
+    salaryGroups.set(id, group)
+  })
+  const salaryShares = [...salaryGroups.values()].sort((a, b) => b.value - a.value)
+  const salaryShareTotal = salaryShares.reduce((sum, item) => sum + item.value, 0)
+  const currentSalary = salaryTrend[currentIndex]?.value
+  const previousSalary = salaryTrend[currentIndex - 1]?.value
+  const annualSalary = salaryTrend.reduce((sum, item) => sum + (item.value ?? 0), 0)
+  const salaryChange = currentSalary !== null && currentSalary !== undefined && previousSalary !== null && previousSalary !== undefined && previousSalary > 0
+    ? ((currentSalary - previousSalary) / previousSalary) * 100
+    : null
+  const totals = {
+    salary: teams.reduce((sum, item) => sum + item.salary, 0),
+    revenue: teams.reduce((sum, item) => sum + item.revenue, 0),
+    traffic: teams.reduce((sum, item) => sum + item.traffic, 0),
+  }
+
+  if (available.length === 0) return null
+
+  return (
+    <section className="space-y-4" aria-label="Biểu đồ phân tích lương, doanh thu và traffic">
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Phân tích dữ liệu</p>
+          <h2 className="mt-1 text-xl font-bold tracking-tight">Xu hướng lương và hiệu quả</h2>
+        </div>
+        <p className="text-xs text-muted-foreground">Số liệu lương đã tính · doanh thu chính thức · views đã duyệt</p>
+      </div>
+
+      {canViewSalary ? (
+        <div className="grid gap-4 xl:grid-cols-5">
+          <Card className="py-0 xl:col-span-2">
+            <CardContent className="p-5">
+              <ChartHeading
+                title="Tỷ trọng quỹ lương"
+                detail={departmentId === 'all'
+                  ? `Theo phòng ban · ${period.name}`
+                  : `Theo team trong ${selectedDepartmentName ?? 'phòng ban đã chọn'} · ${period.name}${teamId === 'all' ? '' : ' · team đã chọn được làm nổi bật'}`}
+              />
+              {salaryShareTotal === 0 ? <ChartEmpty text="Chưa có quỹ lương đã tính trong phạm vi này." /> : (
+                <>
+                  <p className="mt-3 text-sm text-muted-foreground">Tổng quỹ lương <strong className="ml-1 font-bold text-foreground tabular-nums" title={formatMoney(salaryShareTotal)}>{formatCompactMoney(salaryShareTotal)}</strong></p>
+                  <div className="mt-3 h-55 w-full" role="img" aria-label={`Biểu đồ tròn tỷ trọng quỹ lương ${departmentId === 'all' ? 'theo phòng ban' : 'theo team'}`}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={salaryShares} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={94} stroke="#fff" strokeWidth={2}>
+                          {salaryShares.map((item, index) => <Cell key={item.id} fill={PIE_COLORS[index % PIE_COLORS.length]} opacity={teamId === 'all' || item.id === teamId ? 1 : 0.35} />)}
+                        </Pie>
+                        <Tooltip formatter={(value, name) => [formatMoney(Number(value)), String(name)]} contentStyle={{ borderRadius: 12, borderColor: '#dde5ee' }} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="mt-2 max-h-45 space-y-2 overflow-y-auto" aria-label="Chi tiết tỷ trọng quỹ lương">
+                    {salaryShares.map((item, index) => (
+                      <div key={item.id} className="flex items-center justify-between gap-3 text-xs">
+                        <span className="flex min-w-0 items-center gap-2"><span className="size-2.5 shrink-0 rounded-sm" style={{ backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }} aria-hidden="true" /><span className="truncate" title={item.name}>{item.name}</span></span>
+                        <span className="shrink-0 font-semibold tabular-nums" title={formatMoney(item.value)}>{percentage(item.value, salaryShareTotal).toLocaleString('vi-VN', { maximumFractionDigits: 1 })}% · {formatCompactMoney(item.value)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="py-0 xl:col-span-3">
+            <CardContent className="p-5">
+              <ChartHeading
+                title="Biến động tổng quỹ lương"
+                detail={`Theo tháng trong năm ${dashboardYear} · ${teamId !== 'all' ? selectedTeamName ?? 'Team đã chọn' : departmentId !== 'all' ? selectedDepartmentName ?? 'Phòng ban đã chọn' : 'Toàn hệ thống'}`}
+              />
+              <div className="mt-3 flex items-baseline justify-between gap-3 border-b pb-3">
+                <div><span className="block text-xs text-muted-foreground">Tổng quỹ lương năm</span><strong className="text-xl font-bold tabular-nums" title={historyLoading ? undefined : formatMoney(annualSalary)}>{historyLoading ? 'Đang tổng hợp…' : formatCompactMoney(annualSalary)}</strong></div>
+                <span className="text-xs text-muted-foreground">{salaryChange === null ? period.name : `${salaryChange > 0 ? '+' : ''}${salaryChange.toLocaleString('vi-VN', { maximumFractionDigits: 1 })}% tháng gần nhất`}</span>
+              </div>
+              {timeline.length < 2 ? <ChartEmpty text="Cần ít nhất 2 kỳ lương để hiển thị biến động." /> : historyLoading ? (
+                <Skeleton className="mt-5 h-65 w-full rounded-lg" />
+              ) : (
+                <div className="mt-5 h-65 w-full" role="img" aria-label="Biểu đồ đường tổng quỹ lương qua từng kỳ">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={salaryTrend} margin={{ top: 8, right: 14, left: 0, bottom: 0 }}>
+                      <CartesianGrid stroke="#e8edf4" strokeDasharray="3 5" vertical={false} />
+                      <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 11 }} minTickGap={12} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 11 }} tickFormatter={(value: number) => formatAxis(value, 'salary')} width={60} />
+                      <Tooltip formatter={(value) => [formatMoney(Number(value)), 'Tổng quỹ lương']} labelFormatter={(_, payload) => payload?.[0]?.payload?.name ?? ''} contentStyle={{ borderRadius: 12, borderColor: '#dde5ee' }} />
+                      <Line type="monotone" dataKey="value" stroke={METRICS.salary.color} strokeWidth={3} dot={{ r: 4, fill: '#fff', strokeWidth: 2 }} activeDot={{ r: 6 }} connectNulls={false} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+              {historyFailed ? <p className="mt-2 text-xs text-amber-700">Một số kỳ chưa tải được dữ liệu lương. Điểm tương ứng được để trống.</p> : null}
+              {timeline.length >= 2 && !historyLoading ? (
+                <details className="mt-3 text-xs text-muted-foreground">
+                  <summary className="w-fit cursor-pointer rounded-sm font-medium text-primary focus-visible:outline-2 focus-visible:outline-ring">Xem quỹ lương từng kỳ</summary>
+                  <div className="mt-2 overflow-x-auto"><table className="w-full text-left"><thead><tr><th className="py-1 pr-3">Kỳ lương</th><th className="py-1 text-right">Tổng quỹ lương</th></tr></thead><tbody>{salaryTrend.map((item) => <tr key={item.id} className="border-t"><td className="py-1.5 pr-3">{item.name}</td><td className="py-1.5 text-right tabular-nums">{item.value === null ? 'Chưa tải được' : formatMoney(item.value)}</td></tr>)}</tbody></table></div>
+                </details>
+              ) : null}
+            </CardContent>
+          </Card>
+        </div>
+      ) : null}
+
+      <div className="grid gap-4 xl:grid-cols-5">
+        <Card className={`py-0 ${showRankings ? 'xl:col-span-3' : 'xl:col-span-5'}`}>
+          <CardContent className="p-5">
+            <ChartHeading title={`Xu hướng năm ${dashboardYear}`} detail={`Tối đa 12 tháng · ${teamId !== 'all' ? selectedTeamName ?? 'Team đã chọn' : departmentId !== 'all' ? selectedDepartmentName ?? 'Phòng ban đã chọn' : 'Toàn hệ thống'}`} />
+            <MetricTabs available={available} metric={metric} onChange={setChosenMetric} />
+            <div className="mt-3 flex flex-wrap items-baseline justify-between gap-2 border-b pb-3">
+              <span className="text-xs text-muted-foreground">Tổng {METRICS[metric].label.toLowerCase()} năm {dashboardYear}</span>
+              <strong className="text-lg font-bold tabular-nums" title={historyLoading ? undefined : formatMetric(annualMetricTotal, metric)}>
+                {historyLoading ? 'Đang tổng hợp…' : metric === 'traffic' ? formatNumber(annualMetricTotal) : formatCompactMoney(annualMetricTotal)}
+              </strong>
+            </div>
+            {timeline.length < 2 ? (
+              <ChartEmpty text="Cần ít nhất 2 kỳ lương để hiển thị xu hướng." />
+            ) : historyLoading ? (
+              <Skeleton className="mt-5 h-65 w-full rounded-lg" />
+            ) : trend.every((item) => item.value === null) ? (
+              <ChartEmpty text="Chưa có dữ liệu xu hướng cho các kỳ đã chọn." />
+            ) : (
+              <div className="mt-5 h-65 w-full" role="img" aria-label={`Biểu đồ xu hướng ${METRICS[metric].label.toLowerCase()} qua ${timeline.length} kỳ`}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={trend} margin={{ top: 8, right: 14, left: 0, bottom: 0 }}>
+                    <CartesianGrid stroke="#e8edf4" strokeDasharray="3 5" vertical={false} />
+                    <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 11 }} minTickGap={12} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 11 }} tickFormatter={(value: number) => formatAxis(value, metric)} width={60} />
+                    <Tooltip formatter={(value) => [formatMetric(Number(value), metric), METRICS[metric].label]} labelFormatter={(_, payload) => payload?.[0]?.payload?.name ?? ''} contentStyle={{ borderRadius: 12, borderColor: '#dde5ee', boxShadow: '0 12px 28px rgb(15 23 42 / .08)' }} />
+                    <Line type="monotone" dataKey="value" stroke={METRICS[metric].color} strokeWidth={3} dot={{ r: 4, fill: '#fff', strokeWidth: 2 }} activeDot={{ r: 6 }} connectNulls={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+            {historyFailed ? <p className="mt-2 text-xs text-amber-700">Một số kỳ chưa tải được dữ liệu. Điểm tương ứng được để trống.</p> : null}
+            {timeline.length >= 2 && !historyLoading ? (
+              <details className="mt-3 text-xs text-muted-foreground">
+                <summary className="w-fit cursor-pointer rounded-sm font-medium text-primary focus-visible:outline-2 focus-visible:outline-ring">Xem số liệu từng kỳ</summary>
+                <div className="mt-2 overflow-x-auto">
+                  <table className="w-full text-left"><thead><tr><th className="py-1 pr-3">Kỳ lương</th><th className="py-1 text-right">{METRICS[metric].label}</th></tr></thead><tbody>{trend.map((item) => <tr key={item.id} className="border-t"><td className="py-1.5 pr-3">{item.name}</td><td className="py-1.5 text-right tabular-nums">{item.value === null ? 'Chưa tải được' : formatMetric(item.value, metric)}</td></tr>)}</tbody></table>
+                </div>
+              </details>
+            ) : null}
+          </CardContent>
+        </Card>
+
+        {showRankings ? <Card className="py-0 xl:col-span-2">
+          <CardContent className="p-5">
+            <ChartHeading title="Xếp hạng team" detail={`${METRICS[metric].label} · ${period.name}`} />
+            <div className="mt-3 flex items-baseline justify-between gap-2 border-b pb-3">
+              <strong className="text-xl font-bold tabular-nums" title={formatMetric(totals[metric], metric)}>{metric === 'traffic' ? formatNumber(totals.traffic) : formatCompactMoney(totals[metric])}</strong>
+              <span className="text-xs text-muted-foreground">{formatNumber(teams.length)} team</span>
+            </div>
+            {ranked.length === 0 || totals[metric] === 0 ? <ChartEmpty text={`Chưa có ${METRICS[metric].label.toLowerCase()} để so sánh team.`} /> : (
+              <div className="mt-4 max-h-96 w-full overflow-y-auto" role="img" aria-label={`Biểu đồ xếp hạng ${METRICS[metric].label.toLowerCase()} giữa các team`}>
+                <div style={{ height: Math.max(260, ranked.length * 36 + 24) }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={ranked} layout="vertical" margin={{ top: 0, right: 4, left: 0, bottom: 0 }}>
+                    <XAxis type="number" hide />
+                    <YAxis type="category" dataKey="name" width={110} axisLine={false} tickLine={false} tick={{ fill: '#334155', fontSize: 11 }} tickFormatter={(value: string) => value.length > 17 ? `${value.slice(0, 16)}…` : value} />
+                    <Tooltip formatter={(value) => [formatMetric(Number(value), metric), METRICS[metric].label]} contentStyle={{ borderRadius: 12, borderColor: '#dde5ee' }} />
+                    <Bar dataKey={metric} radius={[0, 5, 5, 0]} maxBarSize={18}>
+                      {ranked.map((item) => <Cell key={item.id} fill={teamId === 'all' || item.id === teamId ? METRICS[metric].color : '#b9c7d5'} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card> : null}
+      </div>
+
+      {canViewSalary ? (
+        <div className="grid gap-4 xl:grid-cols-5">
+          {showRankings ? <Card className="py-0 xl:col-span-3">
+            <CardContent className="p-5">
+              <ChartHeading title="Top 10 nhân sự có lương cao nhất" detail={`${period.name} · ${teamId !== 'all' ? selectedTeamName ?? 'Team đã chọn' : departmentId !== 'all' ? selectedDepartmentName ?? 'Phòng ban đã chọn' : 'Toàn hệ thống'} · Chọn một người để xem xu hướng`} />
+              {topEarners.length === 0 ? <ChartEmpty text="Chưa có bảng lương đã tính trong phạm vi này để xếp hạng." /> : (
+                <ol className="mt-4 space-y-1.5" aria-label="Xếp hạng lương nhân sự">
+                  {topEarners.map((item, index) => {
+                    const salary = amount(item.salaryRecord?.totalSalaryAmount)
+                    const selected = selectedEmployee?.employeeId === item.employeeId
+                    return <li key={item.employeeId}>
+                      <button
+                        type="button"
+                        onClick={() => setChosenEmployeeId(item.employeeId)}
+                        aria-pressed={selected}
+                        aria-label={`Hạng ${index + 1}: ${item.employeeName}, ${formatMoney(salary)}. Xem xu hướng lương`}
+                        className={`w-full rounded-lg border px-3 py-2.5 text-left transition-colors focus-visible:outline-2 focus-visible:outline-ring ${selected ? 'border-primary/40 bg-primary/5' : 'border-transparent hover:border-border hover:bg-muted/35'}`}
+                      >
+                        <span className="flex items-center gap-3">
+                          <span className="w-6 shrink-0 text-center text-xs font-bold tabular-nums text-muted-foreground">{String(index + 1).padStart(2, '0')}</span>
+                          <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground" title={item.employeeName}>{item.employeeName}</span>
+                          <span className="shrink-0 text-sm font-bold tabular-nums text-foreground" title={formatMoney(salary)}>{formatCompactMoney(salary)}</span>
+                        </span>
+                        <span className="mt-2 ml-9 block h-2 overflow-hidden rounded-full bg-muted" aria-hidden="true"><span className="block h-full rounded-full bg-primary transition-[width] duration-300" style={{ width: `${percentage(salary, amount(topEarners[0].salaryRecord?.totalSalaryAmount))}%` }} /></span>
+                      </button>
+                    </li>
+                  })}
+                </ol>
+              )}
+            </CardContent>
+          </Card> : null}
+
+          <Card className={`py-0 ${showRankings ? 'xl:col-span-2' : 'xl:col-span-5'}`}>
+            <CardContent className="p-5">
+              <ChartHeading title="Xu hướng lương nhân sự" detail="Lương đã tính qua các kỳ lương" />
+              <Select value={selectedEmployee?.employeeId} onValueChange={setChosenEmployeeId} disabled={selectableEmployees.length === 0}>
+                <SelectTrigger className="mt-4 w-full" aria-label="Chọn nhân sự xem xu hướng lương"><SelectValue placeholder="Chọn nhân sự" /></SelectTrigger>
+                <SelectContent searchPlaceholder="Tìm theo tên nhân sự..." emptySearchMessage="Không tìm thấy nhân sự phù hợp.">{[...selectableEmployees].sort((a, b) => a.employeeName.localeCompare(b.employeeName, 'vi')).map((item) => <SelectItem key={item.employeeId} value={item.employeeId}>{item.employeeName}</SelectItem>)}</SelectContent>
+              </Select>
+              {!selectedEmployee ? <ChartEmpty text={showRankings ? 'Chọn một nhân sự trong top 10 hoặc từ danh sách để xem biến động lương.' : 'Chọn một nhân sự từ danh sách để xem biến động lương.'} /> : (
+                <>
+                  <div className="mt-4 flex flex-wrap items-baseline justify-between gap-2 border-b pb-3">
+                    <div><p className="text-xs text-muted-foreground">{selectedEmployee.employeeName} · {period.name}</p><strong className="mt-1 block text-xl font-bold tabular-nums" title={formatMoney(employeeCurrentSalary)}>{formatCompactMoney(employeeCurrentSalary)}</strong></div>
+                    {employeeSalaryChange !== null ? <span className="text-xs font-semibold tabular-nums text-primary">{employeeSalaryChange > 0 ? '+' : ''}{employeeSalaryChange.toLocaleString('vi-VN', { maximumFractionDigits: 1 })}% so với kỳ trước</span> : null}
+                  </div>
+                  {employeeHistoryLoading ? <Skeleton className="mt-5 h-65 w-full rounded-lg" /> : employeeTrend.filter((item) => item.value !== null).length < 2 ? (
+                    <ChartEmpty text="Chưa đủ 2 kỳ có lương đã tính để hiển thị xu hướng." />
+                  ) : (
+                    <div className="mt-5 w-full overflow-x-auto" role="img" aria-label={`Biểu đồ đường xu hướng lương của ${selectedEmployee.employeeName} qua các kỳ`}>
+                      <div className="h-65" style={{ minWidth: Math.max(360, employeeTrend.length * 48) }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={employeeTrend} margin={{ top: 8, right: 14, left: 0, bottom: 0 }}>
+                            <CartesianGrid stroke="#e8edf4" strokeDasharray="3 5" vertical={false} />
+                            <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 11 }} minTickGap={12} />
+                            <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 11 }} tickFormatter={(value: number) => formatAxis(value, 'salary')} width={60} />
+                            <Tooltip formatter={(value) => [formatMoney(Number(value)), 'Lương đã tính']} labelFormatter={(_, payload) => payload?.[0]?.payload?.name ?? ''} contentStyle={{ borderRadius: 12, borderColor: '#dde5ee' }} />
+                            <Line type="monotone" dataKey="value" stroke={METRICS.salary.color} strokeWidth={3} dot={{ r: 4, fill: '#fff', strokeWidth: 2 }} activeDot={{ r: 6 }} connectNulls={false} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  )}
+                  {employeeHistoryFailed ? <p className="mt-2 text-xs text-amber-700">Một số kỳ chưa tải được lương của nhân sự. Điểm tương ứng được để trống.</p> : null}
+                  {!employeeHistoryLoading ? <details className="mt-3 text-xs text-muted-foreground"><summary className="w-fit cursor-pointer rounded-sm font-medium text-primary focus-visible:outline-2 focus-visible:outline-ring">Xem lương từng kỳ</summary><div className="mt-2 max-h-55 overflow-y-auto"><table className="w-full text-left"><thead><tr><th className="py-1 pr-3">Kỳ lương</th><th className="py-1 text-right">Lương đã tính</th></tr></thead><tbody>{employeeTrend.map((item) => <tr key={item.id} className="border-t"><td className="py-1.5 pr-3">{item.name}</td><td className="py-1.5 text-right tabular-nums">{item.status === 'error' ? 'Không tải được' : item.value === null ? 'Chưa có lương' : formatMoney(item.value)}</td></tr>)}</tbody></table></div></details> : null}
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      ) : null}
+    </section>
+  )
+}
+
+function ChartHeading({ title, detail }: { title: string; detail: string }) {
+  return <div><h3 className="text-base font-bold tracking-tight text-foreground">{title}</h3><p className="mt-1 text-xs text-muted-foreground">{detail}</p></div>
+}
+
+function MetricTabs({ available, metric, onChange }: { available: Metric[]; metric: Metric; onChange: (value: Metric) => void }) {
+  return <div className="mt-4 flex flex-wrap gap-1 rounded-lg bg-muted/65 p-1" role="group" aria-label="Chọn chỉ số biểu đồ">{available.map((item) => <button key={item} type="button" onClick={() => onChange(item)} aria-pressed={metric === item} className={`min-h-9 flex-1 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-ring ${metric === item ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>{METRICS[item].shortLabel}</button>)}</div>
+}
+
+function ChartEmpty({ text }: { text: string }) {
+  return <div className="mt-4 flex min-h-42 items-center justify-center rounded-lg border border-dashed bg-muted/20 px-5 text-center text-sm text-muted-foreground">{text}</div>
+}
