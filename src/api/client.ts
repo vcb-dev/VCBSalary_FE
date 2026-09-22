@@ -4,6 +4,19 @@ import { toast } from 'sonner'
 export const CSRF_COOKIE = 'vcbsalary_csrf'
 const CSRF_HEADER = 'X-CSRF-Token'
 
+/** Trích thông điệp lỗi dễ đọc từ response của backend (kể cả lỗi validate nhiều dòng). */
+export function getApiErrorMessage(error: unknown, fallback = 'Có lỗi xảy ra, vui lòng thử lại') {
+  const err = error as AxiosError<{
+    message?: string | string[]
+    details?: { errors?: string[] }
+  }>
+  const data = err?.response?.data
+  if (data?.details?.errors?.length) return data.details.errors.join(', ')
+  const message = data?.message
+  if (Array.isArray(message)) return message.join(', ')
+  return message ?? err?.message ?? fallback
+}
+
 function readCookie(name: string): string | null {
   const match = document.cookie.match(
     new RegExp(`(?:^|; )${name.replace(/[$()*+.?[\\\]^{|}]/g, '\\$&')}=([^;]*)`),
@@ -15,6 +28,25 @@ export const api = axios.create({
   baseURL: '/api',
   withCredentials: true,
 })
+
+// Các khóa nghiệp vụ trong database là số tự tăng, nhưng FE giữ chúng ở dạng chuỗi để tương thích
+// tự nhiên với value của select/input và URL. Chuẩn hóa tại một chỗ giúp tránh so sánh `1 !== "1"`.
+function normalizeIds(value: unknown, key = ''): unknown {
+  // File export phải giữ nguyên binary response; Object.entries(Blob) sẽ biến nó thành object rỗng.
+  if (value instanceof Blob || value instanceof ArrayBuffer) return value
+  if (typeof value === 'number' && (key === 'id' || key.endsWith('Id'))) {
+    return String(value)
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeIds(item, key.endsWith('Ids') ? 'id' : ''))
+  }
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([childKey, childValue]) => [childKey, normalizeIds(childValue, childKey)]),
+    )
+  }
+  return value
+}
 
 api.interceptors.request.use((config) => {
   const csrf = readCookie(CSRF_COOKIE)
@@ -36,7 +68,10 @@ async function tryRefresh(): Promise<boolean> {
 }
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    response.data = normalizeIds(response.data)
+    return response
+  },
   async (error: AxiosError) => {
     const original = error.config as
       | (InternalAxiosRequestConfig & { _retry?: boolean })
