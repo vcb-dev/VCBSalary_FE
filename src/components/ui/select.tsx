@@ -4,7 +4,47 @@ import * as React from "react"
 import { Select as SelectPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
-import { ChevronDownIcon, CheckIcon, ChevronUpIcon } from "lucide-react"
+import { ChevronDownIcon, CheckIcon, ChevronUpIcon, SearchIcon } from "lucide-react"
+
+const SelectSearchContext = React.createContext("")
+
+function normalizeSearchText(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("vi")
+}
+
+function getNodeText(node: React.ReactNode): string {
+  if (typeof node === "string" || typeof node === "number") return String(node)
+  if (Array.isArray(node)) return node.map(getNodeText).join(" ")
+  if (React.isValidElement(node)) {
+    return getNodeText((node.props as { children?: React.ReactNode }).children)
+  }
+  return ""
+}
+
+function hasMatchingSelectItem(node: React.ReactNode, search: string): boolean {
+  let hasMatch = false
+  const normalizedSearch = normalizeSearchText(search)
+
+  React.Children.forEach(node, (child) => {
+    if (hasMatch || !React.isValidElement(child)) return
+    const childProps = child.props as { children?: React.ReactNode; searchText?: string }
+
+    if (child.type === SelectItem) {
+      const itemText = childProps.searchText ?? getNodeText(childProps.children)
+      hasMatch = normalizeSearchText(itemText).includes(normalizedSearch)
+      return
+    }
+
+    if (childProps.children) {
+      hasMatch = hasMatchingSelectItem(childProps.children, search)
+    }
+  })
+
+  return hasMatch
+}
 
 function Select({
   ...props
@@ -26,9 +66,10 @@ function SelectGroup({
 }
 
 function SelectValue({
+  className,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Value>) {
-  return <SelectPrimitive.Value data-slot="select-value" {...props} />
+  return <SelectPrimitive.Value data-slot="select-value" className={cn("min-w-0 flex-1 truncate", className)} {...props} />
 }
 
 function SelectTrigger({
@@ -44,14 +85,14 @@ function SelectTrigger({
       data-slot="select-trigger"
       data-size={size}
       className={cn(
-        "flex w-fit items-center justify-between gap-1.5 rounded-lg border border-input bg-transparent py-2 pr-2 pl-2.5 text-sm whitespace-nowrap transition-colors outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 data-placeholder:text-muted-foreground data-[size=default]:h-8 data-[size=sm]:h-7 data-[size=sm]:rounded-[min(var(--radius-md),10px)] *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 dark:bg-input/30 dark:hover:bg-input/50 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        "flex w-fit min-w-0 items-center justify-between gap-2 rounded-lg border border-input bg-white py-2 pr-3 pl-3 text-sm whitespace-nowrap shadow-sm transition-colors outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 data-placeholder:text-muted-foreground data-[size=default]:h-9 data-[size=sm]:h-8 data-[size=sm]:rounded-[min(var(--radius-md),10px)] *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:min-w-0 *:data-[slot=select-value]:flex-1 *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 dark:bg-input/30 dark:hover:bg-input/50 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className
       )}
       {...props}
     >
       {children}
       <SelectPrimitive.Icon asChild>
-        <ChevronDownIcon className="pointer-events-none size-4 text-muted-foreground" />
+        <ChevronDownIcon className="pointer-events-none ml-auto size-4 text-muted-foreground" />
       </SelectPrimitive.Icon>
     </SelectPrimitive.Trigger>
   )
@@ -62,8 +103,16 @@ function SelectContent({
   children,
   position = "item-aligned",
   align = "center",
+  searchPlaceholder,
+  emptySearchMessage = "Không tìm thấy kết quả phù hợp.",
   ...props
-}: React.ComponentProps<typeof SelectPrimitive.Content>) {
+}: React.ComponentProps<typeof SelectPrimitive.Content> & {
+  searchPlaceholder?: string
+  emptySearchMessage?: string
+}) {
+  const [search, setSearch] = React.useState("")
+  const hasSearchResult = !search || hasMatchingSelectItem(children, search)
+
   return (
     <SelectPrimitive.Portal>
       <SelectPrimitive.Content
@@ -82,7 +131,31 @@ function SelectContent({
             position === "popper" && ""
           )}
         >
-          {children}
+          {searchPlaceholder ? (
+            <div
+              className="sticky top-0 z-10 border-b border-border bg-popover p-2"
+              onKeyDown={(event) => {
+                if (event.key !== "Escape") event.stopPropagation()
+              }}
+            >
+              <div className="relative">
+                <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder={searchPlaceholder}
+                  aria-label={searchPlaceholder}
+                  autoFocus
+                  className="h-9 w-full min-w-48 rounded-md border border-input bg-background pr-3 pl-8 text-sm outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/30"
+                />
+              </div>
+            </div>
+          ) : null}
+          <SelectSearchContext.Provider value={search}>{children}</SelectSearchContext.Provider>
+          {!hasSearchResult ? (
+            <p className="px-3 py-5 text-center text-sm text-muted-foreground">{emptySearchMessage}</p>
+          ) : null}
         </SelectPrimitive.Viewport>
         <SelectScrollDownButton />
       </SelectPrimitive.Content>
@@ -106,8 +179,18 @@ function SelectLabel({
 function SelectItem({
   className,
   children,
+  searchText,
   ...props
-}: React.ComponentProps<typeof SelectPrimitive.Item>) {
+}: React.ComponentProps<typeof SelectPrimitive.Item> & {
+  searchText?: string
+}) {
+  const search = React.useContext(SelectSearchContext)
+  const itemText = searchText ?? getNodeText(children)
+
+  if (search && !normalizeSearchText(itemText).includes(normalizeSearchText(search))) {
+    return null
+  }
+
   return (
     <SelectPrimitive.Item
       data-slot="select-item"
