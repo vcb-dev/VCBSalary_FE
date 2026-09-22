@@ -21,7 +21,7 @@ export function ErrorState({
       className="flex flex-col gap-3 rounded-xl border border-[var(--danger-500)]/25 bg-[var(--danger-500)]/[0.06] p-4 sm:flex-row sm:items-center sm:justify-between"
     >
       <div className="flex items-start gap-3">
-        <AlertTriangle className="mt-0.5 size-5 shrink-0 text-[var(--danger-600)]" aria-hidden="true" />
+        <AlertTriangle className="mt-0.5 size-5 shrink-0 text-[var(--danger-700)]" aria-hidden="true" />
         <div className="min-w-0">
           <strong className="block text-sm font-semibold text-foreground">{title}</strong>
           <p className="mt-0.5 text-sm leading-5 text-muted-foreground">{description}</p>

@@ -177,12 +177,12 @@ export function HomePage() {
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-4">
       <PageHeader
         eyebrow={period ? `${canViewTeamDashboard && !canViewCompanyDashboard ? 'Tổng quan team' : 'Kỳ lương'} · ${period.code}` : 'Trung tâm điều hành'}
         title={period ? `Tổng quan năm ${chosenYear}` : `Chưa có kỳ lương năm ${chosenYear}`}
         description={period
-          ? `Đang xem chi tiết ${period.name.toLowerCase()} và xu hướng lương, doanh thu, traffic theo 12 tháng của năm.`
+          ? `Lương, doanh thu và traffic của ${period.name.toLowerCase()}, kèm xu hướng 12 tháng.`
           : 'Chọn một năm có dữ liệu để xem tổng quan và xu hướng theo tháng.'}
         meta={period ? (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
@@ -191,15 +191,13 @@ export function HomePage() {
           </span>
         ) : null}
         action={(
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={refreshAll} disabled={refreshing} aria-label="Làm mới dữ liệu tổng quan">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" size="icon" onClick={refreshAll} disabled={refreshing} title="Làm mới dữ liệu" aria-label="Làm mới dữ liệu tổng quan">
               <RefreshCw className={`size-4 ${refreshing ? 'animate-spin' : ''}`} aria-hidden="true" />
-              <span className="hidden sm:inline">{refreshing ? 'Đang tải…' : 'Làm mới'}</span>
             </Button>
             {canExport && salaries.length > 0 ? (
-              <Button variant="outline" onClick={exportSalaryCsv}>
+              <Button variant="outline" size="icon" onClick={exportSalaryCsv} title="Xuất CSV bảng lương" aria-label="Xuất CSV bảng lương">
                 <Download className="size-4" aria-hidden="true" />
-                Xuất CSV
               </Button>
             ) : null}
             <Button asChild>
@@ -210,36 +208,35 @@ export function HomePage() {
       />
 
       {availableYears.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-card px-4 py-3" aria-label="Bộ lọc tổng quan">
-          <span className="text-xs font-semibold text-muted-foreground">{canViewCompanyDashboard ? 'Phạm vi phân tích' : 'Kỳ phân tích'}</span>
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card px-3 py-2.5" aria-label="Bộ lọc tổng quan">
           <Select value={String(chosenYear)} onValueChange={(value) => { setChosenYear(Number(value)); setChosenPeriodId('') }}>
-            <SelectTrigger className="w-full sm:w-32" aria-label="Chọn năm thống kê"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-30" aria-label="Chọn năm thống kê"><SelectValue /></SelectTrigger>
             <SelectContent>{availableYears.map((year) => <SelectItem key={year} value={String(year)}>Năm {year}</SelectItem>)}</SelectContent>
           </Select>
           {period ? <Select value={period.id} onValueChange={setChosenPeriodId}>
-            <SelectTrigger className="w-full sm:w-52" aria-label="Chọn kỳ lương"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-46" aria-label="Chọn kỳ lương"><SelectValue /></SelectTrigger>
             <SelectContent>{periods.map((item) => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}</SelectContent>
           </Select> : null}
           {!canViewCompanyDashboard && teamId !== 'all' ? (
-            <span className="inline-flex min-h-9 items-center rounded-lg bg-primary/8 px-3 text-sm font-semibold text-primary">
+            <span className="inline-flex min-h-9 items-center rounded-lg bg-muted px-3 text-sm font-medium text-foreground">
               {visibleTeams.find((item) => item.id === teamId)?.name ?? 'Team của tôi'}
             </span>
           ) : null}
           {period && canViewCompanyDashboard ? <Select value={departmentId} onValueChange={(value) => { setChosenDepartmentId(value); setChosenTeamId('all') }} disabled={departmentsQuery.isLoading}>
-            <SelectTrigger className="w-full sm:w-48" aria-label="Chọn phòng ban"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-46" aria-label="Chọn phòng ban"><SelectValue /></SelectTrigger>
             <SelectContent>
               {canViewCompanyDashboard || departments.length > 1 ? <SelectItem value="all">Tất cả phòng ban</SelectItem> : null}
               {departments.map((item) => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}
             </SelectContent>
           </Select> : null}
           {period && canViewCompanyDashboard ? <Select value={teamId} onValueChange={setChosenTeamId} disabled={departmentId === 'all' || visibleTeams.length === 0}>
-            <SelectTrigger className="w-full sm:w-48" aria-label="Chọn team"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-46" aria-label="Chọn team"><SelectValue /></SelectTrigger>
             <SelectContent>
               {canViewCompanyDashboard || visibleTeams.length > 1 ? <SelectItem value="all">{departmentId === 'all' ? 'Chọn phòng ban trước' : 'Tất cả team'}</SelectItem> : null}
               {visibleTeams.map((item) => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}
             </SelectContent>
           </Select> : null}
-          {period ? <span className="text-xs text-muted-foreground sm:ml-auto">{loadingData ? 'Đang tải nhân sự…' : `${formatNumber(employeeTotal)} nhân sự ${canViewCompanyDashboard ? 'trong phạm vi' : 'trong team'}`}</span> : null}
+          {period ? <span className="text-xs text-muted-foreground sm:ml-auto sm:pr-1">{loadingData ? 'Đang tải…' : `${formatNumber(employeeTotal)} nhân sự`}</span> : null}
         </div>
       ) : null}
 
@@ -267,10 +264,10 @@ export function HomePage() {
               <MetricCard
                 icon={Wallet}
                 tone="info"
-                label="Quỹ lương kỳ đang chọn"
+                label="Quỹ lương"
                 value={formatCompactMoney(totalAmount)}
                 valueTitle={formatMoney(totalAmount)}
-                note={`${period?.name ?? 'Kỳ đang chọn'} · tổng bảng lương đã tính`}
+                note="Tổng bảng lương đã tính trong kỳ"
                 loading={loadingData}
                 href="/salary-records"
               />
@@ -278,21 +275,21 @@ export function HomePage() {
             {canViewSalary && canViewRevenue ? (
               <MetricCard
                 icon={TrendingUp}
-                tone="success"
-                label="Quỹ lương / doanh thu"
+                tone="info"
+                label="Tỷ lệ lương / doanh thu"
                 value={totalRevenue > 0 ? `${((totalAmount / totalRevenue) * 100).toLocaleString('vi-VN', { maximumFractionDigits: 1 })}%` : '—'}
-                note="Tỷ lệ chi phí lương trên doanh thu kỳ này"
+                note="Chi phí lương trên doanh thu trong kỳ"
                 loading={loadingData}
               />
             ) : null}
             {canViewRevenue ? (
               <MetricCard
                 icon={CircleDollarSign}
-                tone="success"
-                label="Doanh thu kỳ đang chọn"
+                tone="info"
+                label="Doanh thu"
                 value={formatCompactMoney(totalRevenue)}
                 valueTitle={formatMoney(totalRevenue)}
-                note="Tổng doanh thu được ghi nhận trong kỳ"
+                note="Doanh thu chính thức ghi nhận trong kỳ"
                 loading={loadingData}
                 href="/traffic-revenue"
               />
@@ -301,9 +298,9 @@ export function HomePage() {
               <MetricCard
                 icon={Eye}
                 tone="info"
-                label="Traffic kỳ đang chọn"
+                label="Traffic hợp lệ"
                 value={formatNumber(acceptedViews)}
-                note="Tổng lượt xem đã được duyệt trong kỳ"
+                note="Lượt xem đã duyệt trong kỳ"
                 loading={loadingData}
                 href="/traffic-revenue"
               />
@@ -359,7 +356,7 @@ function PersonalWorkspace({ role, fullName, permissions }: { role: string; full
   ].filter((item) => hasAnyPermission(permissions, item.anyOf))
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-4">
       <PageHeader
         eyebrow="Không gian làm việc"
         title={`Xin chào, ${fullName ?? 'bạn'}`}
@@ -379,7 +376,7 @@ function PersonalWorkspace({ role, fullName, permissions }: { role: string; full
             <Link
               key={area.href}
               to={area.href}
-              className="group rounded-2xl border bg-card p-5 shadow-sm transition hover:border-primary/30 hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              className="group rounded-2xl border border-border bg-card p-5 transition-colors hover:border-primary/35 hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
             >
               <span className={`grid size-10 place-items-center rounded-xl ${toneSurface.info}`}>
                 <area.icon className="size-5" aria-hidden="true" />

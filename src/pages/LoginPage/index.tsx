@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from 'react'
 import { Navigate } from 'react-router-dom'
-import { Banknote, CheckCircle2, Eye, EyeOff, Loader2, ShieldCheck, Sparkles } from 'lucide-react'
+import { CheckCircle2, Eye, EyeOff, Loader2, ShieldCheck, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
+import { BrandMark } from '@/components/shared/BrandMark'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -50,14 +51,11 @@ export function LoginPage() {
       <div className="absolute -left-32 -top-36 size-[34rem] rounded-full bg-blue-200/40 blur-3xl" />
       <div className="absolute -bottom-44 -right-32 size-[36rem] rounded-full bg-sky-200/45 blur-3xl" />
       <div className="relative grid w-full max-w-5xl overflow-hidden rounded-3xl border border-white/80 bg-card shadow-[0_30px_90px_rgb(15_42_77/0.16)] lg:grid-cols-[1.08fr_0.92fr]">
-        <div className="relative hidden flex-col justify-between overflow-hidden bg-[#082d58] p-12 text-primary-foreground lg:flex">
+        <div className="relative hidden flex-col justify-between overflow-hidden bg-[var(--brand-navy)] p-12 text-primary-foreground lg:flex">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_5%,rgb(44_145_225/0.28),transparent_38%),radial-gradient(circle_at_0%_100%,rgb(35_180_150/0.14),transparent_38%)]" />
           <div className="absolute -right-20 -top-16 size-72 rounded-full border-[36px] border-white/[0.05]" />
           <div className="flex items-center gap-3">
-            <div className="relative flex size-11 items-center justify-center overflow-hidden rounded-xl bg-white text-primary shadow-xl shadow-black/10">
-              <span className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-sky-400 via-blue-600 to-emerald-400" />
-              <Banknote className="size-5" />
-            </div>
+            <BrandMark className="size-12 text-[var(--brand-gold)]" />
             <div>
               <p className="text-[10px] font-bold tracking-[0.15em] text-primary-foreground/70 uppercase">Viễn Chí Bảo</p>
               <p className="text-lg font-bold">VCB Salary</p>
@@ -81,7 +79,7 @@ export function LoginPage() {
         <Card className="rounded-none border-0 py-0 shadow-none ring-0">
           <CardHeader className="px-6 pt-7 sm:px-10 sm:pt-11">
             <div className="mb-5 flex items-center gap-3 lg:hidden">
-              <span className="grid size-10 place-items-center rounded-xl bg-primary text-white"><Banknote className="size-5" /></span>
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[var(--brand-navy)]"><BrandMark className="size-[26px] text-[var(--brand-gold)]" /></span>
               <span><strong className="block text-base">VCB Salary</strong><small className="text-xs text-muted-foreground">Viễn Chí Bảo</small></span>
             </div>
             <p className="text-[10px] font-bold tracking-[0.14em] text-primary uppercase">Chào mừng trở lại</p>
@@ -114,17 +112,17 @@ export function LoginPage() {
                   </button>
                 </div>
               </div>
-              {error ? <p className="rounded-lg bg-[var(--danger-50)] px-3 py-2 text-xs font-medium text-[var(--danger-600)]" role="alert" aria-live="polite">{error}</p> : null}
-              <Button type="submit" className="mt-2 h-11 w-full shadow-md shadow-blue-900/15" size="lg" disabled={submitting}>
+              {error ? <p className="rounded-lg bg-[var(--danger-50)] px-3 py-2 text-xs font-medium text-[var(--danger-700)]" role="alert" aria-live="polite">{error}</p> : null}
+              <Button type="submit" className="mt-2 h-11 w-full" size="lg" disabled={submitting}>
                 {submitting ? <Loader2 className="size-4 animate-spin" /> : null}
                 {submitting ? 'Đang đăng nhập…' : 'Đăng nhập'}
               </Button>
             </form>
-            <div className="mt-6 border-t pt-5">
+            <div className="mt-6 border-t border-border pt-5">
               <p className="mb-3 text-center text-xs font-medium text-muted-foreground">Đăng nhập nhanh bằng tài khoản demo</p>
               <div className="grid max-h-52 grid-cols-2 gap-2 overflow-y-auto pr-1">
                 {DEMO_ACCOUNTS.map((account) => (
-                  <button key={account.email} type="button" onClick={() => { setEmail(account.email); setPassword('Admin@123'); setError('') }} className="rounded-xl border bg-slate-50 px-3 py-2.5 text-left transition-all hover:border-primary/30 hover:bg-secondary">
+                  <button key={account.email} type="button" onClick={() => { setEmail(account.email); setPassword('Admin@123'); setError('') }} className="rounded-xl border border-border bg-muted/40 px-3 py-2.5 text-left transition-colors hover:border-primary/30 hover:bg-secondary">
                     <strong className="block text-xs">{account.label}</strong><span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{account.email}</span>
                   </button>
                 ))}

@@ -208,7 +208,7 @@ export function AccessControlPage() {
   const customRoles = roles.filter((role) => !role.isSystemRole).length
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-4">
       <PageHeader
         eyebrow="Quản trị truy cập"
         title="Phân quyền & tài khoản"
@@ -350,12 +350,8 @@ function AccountsTab({
         <div className="flex flex-col gap-3 border-b p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
-              <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${toneSurface.info}`}>
-                <UsersRound className="size-5" aria-hidden="true" />
-              </span>
-              <div>
-                <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Danh tính &amp; phạm vi dữ liệu</p>
-                <h2 className="mt-1 text-base font-bold">Tài khoản người dùng</h2>
+              <div className="min-w-0">
+                <h2 className="text-base font-semibold tracking-tight text-foreground">Tài khoản người dùng</h2>
                 <p className="mt-1 text-xs text-muted-foreground">
                   {isFiltering
                     ? `${formatNumber(filtered.length)}/${formatNumber(users.length)} tài khoản khớp bộ lọc`
@@ -390,7 +386,7 @@ function AccountsTab({
 
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-full" aria-label="Lọc theo trạng thái tài khoản">
-                <KeyRound className="size-3.5 text-primary" aria-hidden="true" />
+                <KeyRound className="size-3.5 text-muted-foreground" aria-hidden="true" />
                 <SelectValue placeholder="Trạng thái" />
               </SelectTrigger>
               <SelectContent>
@@ -445,14 +441,14 @@ function AccountsTab({
                     <span className="block text-xs text-muted-foreground">{account.email}</span>
                     <span className="mt-0.5 block text-xs text-muted-foreground">
                       {account.employee ? `Nhân sự: ${account.employee.fullName}` : (
-                        <span className="text-[var(--warning-600)]">Chưa gắn nhân sự</span>
+                        <span className="text-[var(--warning-700)]">Chưa gắn nhân sự</span>
                       )}
                     </span>
                   </TableCell>
                   <TableCell className="whitespace-normal">
                     <div className="flex flex-wrap gap-1.5">
                       {account.roles.length === 0 ? (
-                        <span className="text-xs font-medium text-[var(--warning-600)]">Chưa gán vai trò</span>
+                        <span className="text-xs font-medium text-[var(--warning-700)]">Chưa gán vai trò</span>
                       ) : null}
                       {account.roles.map((assignment, index) => (
                         <Badge key={`${assignment.roleId}-${index}`} variant="secondary" className="gap-1">
@@ -597,7 +593,7 @@ function RoleScopeEditor({
             const selectedRole = roles.find((role) => role.id === draft.roleId)
             const fixedScope = selectedRole ? SYSTEM_ROLE_SCOPES[selectedRole.code] : undefined
             return (
-          <div key={index} className="space-y-2 rounded-lg bg-card p-3 shadow-sm ring-1 ring-border">
+          <div key={index} className="space-y-2 rounded-lg border border-border bg-card p-3">
             <div className="flex items-start gap-2">
               <div className="grid flex-1 gap-2 sm:grid-cols-2">
                 <Select value={draft.roleId} onValueChange={(value) => {
@@ -1038,12 +1034,8 @@ function RolesTab({
       <CardContent className="p-0">
         <div className="flex flex-col gap-3 border-b p-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${toneSurface.info}`}>
-              <ShieldCheck className="size-5" aria-hidden="true" />
-            </span>
-            <div>
-              <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Vai trò</p>
-              <h2 className="mt-1 text-base font-bold">Danh sách vai trò và số quyền</h2>
+            <div className="min-w-0">
+              <h2 className="text-base font-semibold tracking-tight text-foreground">Danh sách vai trò</h2>
               <p className="mt-1 text-xs text-muted-foreground">
                 {term ? `${formatNumber(visibleRoles.length)}/${formatNumber(roles.length)} vai trò khớp` : `${formatNumber(roles.length)} vai trò`}
               </p>
@@ -1226,12 +1218,10 @@ function RolePermissionsDialog({
           <div className="space-y-4">
             {grouped.map(([category, list]) => (
               <div key={category}>
-                <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                  {categoryLabel(category)}
-                </p>
+                <p className="text-sm font-semibold text-foreground">{categoryLabel(category)}</p>
                 <div className="mt-2 grid gap-1 sm:grid-cols-2">
                   {list.map((permission) => (
-                    <label key={permission.code} className="flex items-start gap-2 rounded-lg border border-transparent p-2 text-sm hover:border-border hover:bg-muted/50">
+                    <label key={permission.code} className="flex items-start gap-2 rounded-lg border border-transparent p-2 text-sm hover:border-border hover:bg-muted/40">
                       <input
                         type="checkbox"
                         className="mt-1 size-4 accent-primary"
@@ -1370,12 +1360,8 @@ function PermissionCatalogTab({ permissions, loading }: { permissions: Permissio
       <CardContent className="p-0">
         <div className="flex flex-col gap-3 border-b p-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${toneSurface.info}`}>
-              <KeyRound className="size-5" aria-hidden="true" />
-            </span>
-            <div>
-              <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Danh mục</p>
-              <h2 className="mt-1 text-base font-bold">Toàn bộ permission của hệ thống</h2>
+            <div className="min-w-0">
+              <h2 className="text-base font-semibold tracking-tight text-foreground">Toàn bộ permission của hệ thống</h2>
               <p className="mt-1 text-xs text-muted-foreground">
                 {term ? `${formatNumber(matched.length)}/${formatNumber(permissions.length)} quyền khớp` : `${formatNumber(permissions.length)} quyền`}
               </p>
@@ -1417,7 +1403,7 @@ function PermissionCatalogTab({ permissions, loading }: { permissions: Permissio
           <div className="grid gap-5 p-5 md:grid-cols-2">
             {grouped.map(([category, list]) => (
               <section key={category}>
-                <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">{categoryLabel(category)}</h3>
+                <h3 className="text-sm font-semibold text-foreground">{categoryLabel(category)}</h3>
                 <div className="mt-2 divide-y rounded-xl border">
                   {list.map((permission) => (
                     <div key={permission.code} className="p-3">
@@ -1453,12 +1439,8 @@ function MatrixTab({ roles, permissions, loading }: { roles: Role[]; permissions
       <CardContent className="p-0">
         <div className="flex flex-col gap-3 border-b p-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${toneSurface.info}`}>
-              <Settings2 className="size-5" aria-hidden="true" />
-            </span>
-            <div>
-              <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Ma trận quyền</p>
-              <h2 className="mt-1 text-base font-bold">Vai trò × permission</h2>
+            <div className="min-w-0">
+              <h2 className="text-base font-semibold tracking-tight text-foreground">Ma trận vai trò × permission</h2>
               <p className="mt-1 text-xs text-muted-foreground">
                 {term ? `${formatNumber(matched.length)}/${formatNumber(permissions.length)} quyền khớp` : 'Dấu ✓ là vai trò đang có quyền đó'}
               </p>
@@ -1509,10 +1491,10 @@ function MatrixTab({ roles, permissions, loading }: { roles: Role[]; permissions
             <TableBody>
               {grouped.map(([category, list]) => (
                 <Fragment key={category}>
-                  <TableRow className="bg-muted/50">
+                  <TableRow className="bg-muted/40">
                     <TableCell
                       colSpan={roles.length + 1}
-                      className="text-xs font-semibold tracking-wider text-muted-foreground uppercase"
+                      className="text-xs font-semibold text-muted-foreground"
                     >
                       {categoryLabel(category)}
                     </TableCell>
@@ -1526,7 +1508,7 @@ function MatrixTab({ roles, permissions, loading }: { roles: Role[]; permissions
                       {roleColumns.map(({ role, codes }) => (
                         <TableCell key={role.id} className="text-center">
                           {codes.has(permission.code) ? (
-                            <Check className="mx-auto size-4 text-[var(--success-600)]" aria-label="Có quyền" />
+                            <Check className="mx-auto size-4 text-[var(--success-700)]" aria-label="Có quyền" />
                           ) : (
                             <span className="text-muted-foreground" aria-label="Không có quyền">·</span>
                           )}

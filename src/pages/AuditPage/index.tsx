@@ -208,7 +208,7 @@ export function AuditPage() {
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-4">
       <PageHeader
         eyebrow="Kiểm soát hệ thống"
         title="Nhật ký hoạt động"
@@ -293,7 +293,7 @@ export function AuditPage() {
                 onValueChange={(value) => setFilters((current) => ({ ...current, page: 1, action: value === ALL ? undefined : value }))}
               >
                 <SelectTrigger id="audit-action" className="data-[size=default]:h-10 w-full">
-                  <Activity className="size-3.5 text-primary" aria-hidden="true" />
+                  <Activity className="size-3.5 text-muted-foreground" aria-hidden="true" />
                   <SelectValue placeholder="Loại hoạt động" />
                 </SelectTrigger>
                 <SelectContent searchPlaceholder="Tìm hoạt động...">
@@ -310,7 +310,7 @@ export function AuditPage() {
                 onValueChange={(value) => setFilters((current) => ({ ...current, page: 1, payrollPeriodId: value === ALL ? undefined : value }))}
               >
                 <SelectTrigger id="audit-period" className="data-[size=default]:h-10 w-full">
-                  <CalendarClock className="size-3.5 text-primary" aria-hidden="true" />
+                  <CalendarClock className="size-3.5 text-muted-foreground" aria-hidden="true" />
                   <SelectValue placeholder="Kỳ lương" />
                 </SelectTrigger>
                 <SelectContent>
@@ -342,7 +342,7 @@ export function AuditPage() {
           </div>
 
           {hasFilters ? (
-            <div className="mt-3 flex items-center justify-between rounded-lg bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
+            <div className="mt-3 flex items-center justify-between rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
               <span>Đang lọc: <strong className="text-foreground">{formatNumber(totalLogs)}</strong> sự kiện khớp.</span>
               <Button variant="ghost" size="sm" className="h-7" onClick={clearFilters}>
                 <FilterX className="size-3.5" aria-hidden="true" />Xóa bộ lọc
@@ -354,13 +354,13 @@ export function AuditPage() {
 
       <Card className="overflow-hidden py-0">
         <CardContent className="p-0">
-          <div className="flex flex-col gap-2 border-b p-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Lịch sử thay đổi</p>
-              <h2 className="mt-1 text-base font-bold">Hoạt động gần đây</h2>
+          <div className="flex flex-col gap-2 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <h2 className="text-base font-semibold tracking-tight text-foreground">Hoạt động gần đây</h2>
+              <p className="mt-1 text-xs text-muted-foreground">Lịch sử thay đổi trong phạm vi được cấp</p>
             </div>
             <span className="flex items-center gap-2 text-xs text-muted-foreground">
-              <ShieldCheck className="size-4 text-[var(--success-600)]" aria-hidden="true" />
+              <ShieldCheck className="size-4 text-[var(--success-700)]" aria-hidden="true" />
               Dữ liệu đã giới hạn theo quyền của bạn
             </span>
           </div>
@@ -529,7 +529,7 @@ function AuditDetail({ item }: { item: AuditLog }) {
 
         <section>
           <SectionTitle>Thông tin thay đổi</SectionTitle>
-          {changes.length > 0 ? <ChangeList changes={changes} references={item.references} /> : <div className="flex items-start gap-3 rounded-xl border bg-muted/25 p-4"><CheckCircle2 className="mt-0.5 size-5 shrink-0 text-[var(--success-600)]" /><div><strong className="text-sm">Không phát sinh thay đổi giá trị</strong><p className="mt-1 text-sm text-muted-foreground">Hoạt động đã được ghi nhận nhưng dữ liệu nghiệp vụ trước và sau không khác nhau.</p></div></div>}
+          {changes.length > 0 ? <ChangeList changes={changes} references={item.references} /> : <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/30 p-4"><CheckCircle2 className="mt-0.5 size-5 shrink-0 text-[var(--success-700)]" /><div><strong className="text-sm">Không phát sinh thay đổi giá trị</strong><p className="mt-1 text-sm text-muted-foreground">Hoạt động đã được ghi nhận nhưng dữ liệu nghiệp vụ trước và sau không khác nhau.</p></div></div>}
         </section>
       </div>
     </div>
@@ -539,12 +539,12 @@ function AuditDetail({ item }: { item: AuditLog }) {
 type Change = { key: string; before: unknown; after: unknown }
 
 function ChangeList({ changes, references }: { changes: Change[]; references?: AuditLog['references'] }) {
-  return <div className="overflow-hidden rounded-xl border"><div className="hidden grid-cols-[minmax(160px,0.8fr)_minmax(0,1fr)_28px_minmax(0,1fr)] gap-3 border-b bg-muted/40 px-4 py-2.5 text-xs font-semibold text-muted-foreground sm:grid"><span>Nội dung</span><span>Trước thay đổi</span><span /><span>Sau thay đổi</span></div>{changes.map((change) => <div key={change.key} className="grid gap-2 border-b px-4 py-3 last:border-0 sm:grid-cols-[minmax(160px,0.8fr)_minmax(0,1fr)_28px_minmax(0,1fr)] sm:items-center sm:gap-3"><strong className="text-sm">{fieldLabel(change.key)}</strong><div className="rounded-lg bg-muted/60 px-3 py-2 text-sm text-muted-foreground"><span className="mr-2 text-xs font-semibold uppercase sm:hidden">Trước</span>{formatValue(change.key, change.before, references)}</div><ArrowRight className="mx-auto hidden size-4 text-muted-foreground sm:block" /><div className={`rounded-lg px-3 py-2 text-sm font-medium ${toneSurface.success}`}><span className="mr-2 text-xs font-semibold uppercase sm:hidden">Sau</span>{formatValue(change.key, change.after, references)}</div></div>)}</div>
+  return <div className="overflow-hidden rounded-xl border border-border"><div className="hidden grid-cols-[minmax(160px,0.8fr)_minmax(0,1fr)_28px_minmax(0,1fr)] gap-3 border-b border-border bg-muted/40 px-4 py-2.5 text-xs font-semibold text-muted-foreground sm:grid"><span>Nội dung</span><span>Trước thay đổi</span><span /><span>Sau thay đổi</span></div>{changes.map((change) => <div key={change.key} className="grid gap-2 border-b border-border px-4 py-3 last:border-0 sm:grid-cols-[minmax(160px,0.8fr)_minmax(0,1fr)_28px_minmax(0,1fr)] sm:items-center sm:gap-3"><strong className="text-sm">{fieldLabel(change.key)}</strong><div className="rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground"><span className="mr-2 text-xs font-semibold sm:hidden">Trước</span>{formatValue(change.key, change.before, references)}</div><ArrowRight className="mx-auto hidden size-4 text-muted-foreground sm:block" /><div className={`rounded-lg px-3 py-2 text-sm font-medium ${toneSurface.success}`}><span className="mr-2 text-xs font-semibold sm:hidden">Sau</span>{formatValue(change.key, change.after, references)}</div></div>)}</div>
 }
 
-function InformationCard({ icon: Icon, title, children }: { icon: typeof Activity; title: string; children: ReactNode }) { return <div className="rounded-xl border bg-card p-4"><div className="mb-4 flex items-center gap-2"><span className={`grid size-9 place-items-center rounded-lg ${toneSurface.info}`}><Icon className="size-4" aria-hidden="true" /></span><strong className="text-sm">{title}</strong></div><dl className="space-y-2.5">{children}</dl></div> }
+function InformationCard({ icon: Icon, title, children }: { icon: typeof Activity; title: string; children: ReactNode }) { return <div className="rounded-xl border border-border bg-card p-4"><div className="mb-4 flex items-center gap-2"><span className={`grid size-9 place-items-center rounded-lg ${toneSurface.info}`}><Icon className="size-4" aria-hidden="true" /></span><strong className="text-sm">{title}</strong></div><dl className="space-y-2.5">{children}</dl></div> }
 function DetailLine({ label, value }: { label: string; value: string }) { return <div className="grid grid-cols-[minmax(90px,0.8fr)_minmax(0,1.2fr)] gap-3 text-sm"><dt className="text-muted-foreground">{label}</dt><dd className="break-words text-right font-medium">{value}</dd></div> }
-function SectionTitle({ children }: { children: string }) { return <h3 className="mb-2.5 text-xs font-bold tracking-wider text-muted-foreground uppercase">{children}</h3> }
+function SectionTitle({ children }: { children: string }) { return <h3 className="mb-2.5 text-sm font-semibold text-foreground">{children}</h3> }
 function Pagination({ current, total, totalItems, onPage }: { current: number; total: number; totalItems: number; onPage: (page: number) => void }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 border-t p-4 text-sm">

@@ -1,8 +1,9 @@
 import { useEffect, useRef, type ReactNode } from 'react'
-import { Banknote, CalendarClock, ChevronRight, PanelLeftClose, PanelLeftOpen, X } from 'lucide-react'
+import { CalendarClock, ChevronRight, PanelLeftClose, PanelLeftOpen, X } from 'lucide-react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import type { PayrollPeriodStatus } from '@/api/payroll-periods'
 import type { NavigationItem } from '@/components/layout/navigation'
+import { BrandMark } from '@/components/shared/BrandMark'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useMediaQuery } from '@/lib/use-media-query'
@@ -249,11 +250,10 @@ export function AppSidebar({
           )}
         >
           <span
-            className="relative grid size-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-[#082d58] text-white shadow-[0_8px_20px_rgb(7_45_86/0.18)] ring-1 ring-[#082d58]/10"
+            className="relative grid size-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-[var(--brand-navy)] shadow-[0_8px_20px_rgb(7_45_86/0.18)] ring-1 ring-[var(--brand-navy)]/10"
             aria-hidden="true"
           >
-            <Banknote className="size-5 stroke-[1.8]" />
-            <span className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-sky-400 via-blue-500 to-emerald-400" />
+            <BrandMark className="size-[26px] text-[var(--brand-gold)]" />
           </span>
           {rail ? null : (
             <span className="min-w-0">

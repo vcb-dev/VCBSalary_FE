@@ -42,6 +42,9 @@
 }
 
 :root {
+  /* Màu nhận diện Viễn Chí Bảo — lấy trực tiếp từ file logo gốc. */
+  --brand-gold: #d0a463;
+  --brand-navy: #082d58;
   --white: #ffffff;
   --n-50: #f9fafb;
   --n-100: #f3f4f6;
@@ -57,14 +60,17 @@
   --success-100: #dcfce7;
   --success-500: #22c55e;
   --success-600: #16a34a;
+  --success-700: #15803d;
   --warning-50: #fffbeb;
   --warning-100: #fef3c7;
   --warning-500: #f59e0b;
   --warning-600: #d97706;
+  --warning-700: #b45309;
   --danger-50: #fef2f2;
   --danger-100: #fee2e2;
   --danger-500: #ef4444;
   --danger-600: #dc2626;
+  --danger-700: #b91c1c;
   --background: #f5f7fb;
   --foreground: #14213a;
   --card: oklch(1 0 0);
@@ -76,23 +82,23 @@
   --secondary: #e9f3fd;
   --secondary-foreground: #075aa8;
   --muted: #eef2f7;
-  --muted-foreground: #64748b;
+  --muted-foreground: #556478;
   --accent: #e9f3fd;
   --accent-foreground: #075aa8;
   --destructive: oklch(0.577 0.245 27.325);
-  --border: #cbd7e4;
+  --border: #d2dce8;
   --input: #c2cfdd;
   --ring: #4392df;
   /* Sidebar sáng và trung tính để nội dung nghiệp vụ là điểm nhấn chính. */
   --sidebar: #ffffff;
   --sidebar-foreground: #17223b;
-  --sidebar-item: #526178;
-  --sidebar-muted: #718198;
-  --sidebar-subtle: #8c9aae;
+  --sidebar-item: #465570;
+  --sidebar-muted: #62728b;
+  --sidebar-subtle: #79889d;
   --sidebar-accent: #075aa8;
   --sidebar-surface: #f2f6fa;
   --sidebar-hover: #f5f8fb;
-  --sidebar-border: #d2dce7;
+  --sidebar-border: #c8d4e2;
   --sidebar-ring: #4392df;
 }
 
@@ -108,11 +114,11 @@
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
+  --muted-foreground: oklch(0.76 0 0);
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 14%);
+  --border: oklch(1 0 0 / 20%);
   --input: oklch(1 0 0 / 20%);
   --ring: oklch(0.556 0 0);
   --sidebar: #050d19;
@@ -123,7 +129,7 @@
   --sidebar-accent: #7dd3fc;
   --sidebar-surface: rgb(255 255 255 / 0.06);
   --sidebar-hover: rgb(255 255 255 / 0.08);
-  --sidebar-border: rgb(255 255 255 / 0.14);
+  --sidebar-border: rgb(255 255 255 / 0.2);
   --sidebar-ring: #7dd3fc;
 }
 
@@ -166,10 +172,14 @@
     scrollbar-color: color-mix(in srgb, var(--sidebar-accent) 22%, transparent) transparent;
   }
   [data-slot="card"] {
-    box-shadow: 0 1px 2px rgb(15 23 42 / 0.025), 0 8px 24px rgb(15 23 42 / 0.035);
+    box-shadow: 0 1px 2px rgb(15 23 42 / 0.04);
+  }
+  /* Chỉ thẻ bấm được mới nổi lên khi hover — độ nổi trở thành tín hiệu tương tác, không phải trang trí. */
+  [data-slot="card"]:has(a, button):hover {
+    box-shadow: 0 4px 10px -2px rgb(15 23 42 / 0.08);
   }
   [data-slot="table-header"] { background: #f7f9fc; }
-  [data-slot="table-head"] { color: #64748b; font-size: 0.6875rem; font-weight: 700; letter-spacing: .045em; text-transform: uppercase; }
+  [data-slot="table-head"] { color: #556478; font-size: 0.6875rem; font-weight: 700; letter-spacing: .045em; text-transform: uppercase; }
   [data-slot="dialog-content"], [data-slot="dropdown-menu-content"], [data-slot="select-content"] {
     box-shadow: 0 18px 50px rgb(15 23 42 / 0.15);
   }
@@ -196,5 +206,5 @@
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: #c6d2df transparent;
+  scrollbar-color: #b9c6d6 transparent;
 }

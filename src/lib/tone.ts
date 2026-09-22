@@ -3,9 +3,9 @@ export type Tone = 'info' | 'success' | 'warning' | 'danger' | 'muted'
 /** Nền + chữ cho ô icon, chip. Dùng độ mờ nên hoạt động được trên cả nền sáng và nền tối. */
 export const toneSurface: Record<Tone, string> = {
   info: 'bg-primary/10 text-primary',
-  success: 'bg-[var(--success-500)]/14 text-[var(--success-600)]',
-  warning: 'bg-[var(--warning-500)]/16 text-[var(--warning-600)]',
-  danger: 'bg-[var(--danger-500)]/12 text-[var(--danger-600)]',
+  success: 'bg-[var(--success-500)]/14 text-[var(--success-700)]',
+  warning: 'bg-[var(--warning-500)]/16 text-[var(--warning-700)]',
+  danger: 'bg-[var(--danger-500)]/12 text-[var(--danger-700)]',
   muted: 'bg-muted text-muted-foreground',
 }
 
@@ -21,8 +21,8 @@ export const toneSolid: Record<Tone, string> = {
 /** Chỉ màu chữ, dùng cho icon nằm trong dòng văn bản. */
 export const toneText: Record<Tone, string> = {
   info: 'text-primary',
-  success: 'text-[var(--success-600)]',
-  warning: 'text-[var(--warning-600)]',
-  danger: 'text-[var(--danger-600)]',
+  success: 'text-[var(--success-700)]',
+  warning: 'text-[var(--warning-700)]',
+  danger: 'text-[var(--danger-700)]',
   muted: 'text-muted-foreground',
 }

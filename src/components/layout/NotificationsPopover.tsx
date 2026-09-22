@@ -228,13 +228,13 @@ function FilterButton({ active, onClick, children }: { active: boolean; onClick:
 }
 
 function EmptyState({ icon: Icon, title, description, danger = false }: { icon: typeof Bell; title: string; description: string; danger?: boolean }) {
-  return <div className="grid place-items-center gap-1.5 px-6 py-10 text-center"><span className={`grid size-11 place-items-center rounded-full ${danger ? 'bg-[var(--danger-100)] text-[var(--danger-600)]' : 'bg-muted text-muted-foreground'}`}><Icon className="size-5" /></span><strong className="text-sm">{title}</strong><p className="text-xs leading-5 text-muted-foreground">{description}</p></div>
+  return <div className="grid place-items-center gap-1.5 px-6 py-10 text-center"><span className={`grid size-11 place-items-center rounded-full ${danger ? 'bg-[var(--danger-100)] text-[var(--danger-700)]' : 'bg-muted text-muted-foreground'}`}><Icon className="size-5" /></span><strong className="text-sm">{title}</strong><p className="text-xs leading-5 text-muted-foreground">{description}</p></div>
 }
 
 function iconTone(tone: NotificationTone) {
-  if (tone === 'success') return 'bg-[var(--success-100)] text-[var(--success-600)]'
-  if (tone === 'warning') return 'bg-[var(--warning-100)] text-[var(--warning-600)]'
-  if (tone === 'danger') return 'bg-[var(--danger-100)] text-[var(--danger-600)]'
+  if (tone === 'success') return 'bg-[var(--success-100)] text-[var(--success-700)]'
+  if (tone === 'warning') return 'bg-[var(--warning-100)] text-[var(--warning-700)]'
+  if (tone === 'danger') return 'bg-[var(--danger-100)] text-[var(--danger-700)]'
   return 'bg-muted text-muted-foreground'
 }
 

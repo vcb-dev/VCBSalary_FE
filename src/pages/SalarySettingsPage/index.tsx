@@ -217,7 +217,7 @@ export function SalarySettingsPage() {
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-4">
       <PageHeader
         eyebrow="Quản trị cấu hình"
         title="Cấu hình lương & thưởng"
@@ -253,13 +253,9 @@ export function SalarySettingsPage() {
             <CardContent className="p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${toneSurface.info}`}>
-                    <Settings2 className="size-5" aria-hidden="true" />
-                  </span>
-                  <div>
-                    <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Bộ quy tắc hiện hành</p>
-                    <h2 className="mt-1 text-xl font-bold">Phiên bản {currentRuleSet!.version}</h2>
-                    <p className="mt-1 text-sm text-muted-foreground">Tạo lúc {formatDate(currentRuleSet!.createdAt)}</p>
+                  <div className="min-w-0">
+                    <h2 className="text-base font-semibold tracking-tight text-foreground">Bộ quy tắc hiện hành · phiên bản {currentRuleSet!.version}</h2>
+                    <p className="mt-1 text-xs text-muted-foreground">Tạo lúc {formatDate(currentRuleSet!.createdAt)}</p>
                   </div>
                 </div>
                 <StatusBadge tone={RULE_SET_STATUS_TONE[currentRuleSet!.status]}>
@@ -496,7 +492,7 @@ function CreateVersionDialog({ ruleSets, onCreated }: { ruleSets: RewardRuleSet[
               </SelectContent>
             </Select>
           </div>
-          {formError ? <p className="text-sm text-[var(--danger-600)]">{formError}</p> : null}
+          {formError ? <p className="text-sm text-[var(--danger-700)]">{formError}</p> : null}
         </div>
         <DialogFooter>
           <DialogClose asChild>
@@ -643,7 +639,7 @@ function DirectoryFilters({
       </div>
       <Select value={departmentId} onValueChange={onDepartmentChange}>
         <SelectTrigger className="w-full" aria-label="Lọc theo phòng ban">
-          <Building2 className="size-3.5 text-primary" aria-hidden="true" />
+          <Building2 className="size-3.5 text-muted-foreground" aria-hidden="true" />
           <SelectValue placeholder="Phòng ban" />
         </SelectTrigger>
         <SelectContent searchPlaceholder="Tìm phòng ban...">
@@ -653,7 +649,7 @@ function DirectoryFilters({
       </Select>
       <Select value={teamId} onValueChange={onTeamChange}>
         <SelectTrigger className="w-full" aria-label="Lọc theo team">
-          <UsersRound className="size-3.5 text-primary" aria-hidden="true" />
+          <UsersRound className="size-3.5 text-muted-foreground" aria-hidden="true" />
           <SelectValue placeholder="Team" />
         </SelectTrigger>
         <SelectContent searchPlaceholder="Tìm team...">
@@ -709,14 +705,11 @@ function RevenueBracketsTab({ ruleSet, canManage }: { ruleSet: RewardRuleSet; ca
       <CardContent className="p-0">
         <div className="flex flex-col gap-3 border-b p-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${toneSurface.info}`}>
-              <BadgeDollarSign className="size-5" aria-hidden="true" />
-            </span>
-            <div>
-              <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                Bộ quy tắc phiên bản {ruleSet.version}{ruleSet.status !== 'DRAFT' ? ' · chỉ xem' : ''}
+            <div className="min-w-0">
+              <h2 className="text-base font-semibold tracking-tight text-foreground">Mốc doanh thu → Hoa hồng &amp; RPM</h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Phiên bản {ruleSet.version}{ruleSet.status !== 'DRAFT' ? ' · chỉ xem' : ''}
               </p>
-              <h2 className="mt-1 text-base font-bold">Mốc doanh thu → Hoa hồng &amp; RPM</h2>
               <p className="mt-1 text-xs text-muted-foreground">
                 Một doanh thu chỉ khớp một mốc: min ≤ doanh thu &lt; max; mốc cao nhất không giới hạn trên.
               </p>
@@ -907,7 +900,7 @@ function CreateBracketDialog({ ruleSetId }: { ruleSetId: string }) {
               />
             </div>
           </div>
-          {formError ? <p className="text-sm text-[var(--danger-600)]">{formError}</p> : null}
+          {formError ? <p className="text-sm text-[var(--danger-700)]">{formError}</p> : null}
         </div>
         <DialogFooter>
           <DialogClose asChild>
@@ -1037,7 +1030,7 @@ function EditBracketDialog({ bracket }: { bracket: RevenueRewardBracket }) {
               />
             </div>
           </div>
-          {formError ? <p className="text-sm text-[var(--danger-600)]">{formError}</p> : null}
+          {formError ? <p className="text-sm text-[var(--danger-700)]">{formError}</p> : null}
         </div>
         <DialogFooter>
           <DialogClose asChild>
@@ -1132,12 +1125,8 @@ function BaseSalaryTab({
           <div className="flex flex-col gap-3 border-b p-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-3">
-                <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${toneSurface.info}`}>
-                  <BadgeDollarSign className="size-5" aria-hidden="true" />
-                </span>
-                <div>
-                  <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Theo nhân sự</p>
-                  <h2 className="mt-1 text-base font-bold">Lương cơ bản &amp; hiệu lực</h2>
+                <div className="min-w-0">
+                  <h2 className="text-base font-semibold tracking-tight text-foreground">Lương cơ bản &amp; hiệu lực</h2>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {directory.isFiltering
                       ? `${formatNumber(directory.filtered.length)}/${formatNumber(directory.employees.length)} nhân sự khớp bộ lọc`
@@ -1375,7 +1364,7 @@ function CreateBaseSalaryDialog({ employeeId, compact = false }: { employeeId: s
             <Label htmlFor="bs-from">Hiệu lực từ ngày</Label>
             <Input id="bs-from" type="date" value={effectiveFrom} onChange={(event) => setEffectiveFrom(event.target.value)} />
           </div>
-          {formError ? <p className="text-sm text-[var(--danger-600)]">{formError}</p> : null}
+          {formError ? <p className="text-sm text-[var(--danger-700)]">{formError}</p> : null}
         </div>
         <DialogFooter>
           <DialogClose asChild>
@@ -1451,7 +1440,7 @@ function EditBaseSalaryDialog({ entry }: { entry: BaseSalaryHistory }) {
               onChange={(event) => setEffectiveFrom(event.target.value)}
             />
           </div>
-          {formError ? <p className="text-sm text-[var(--danger-600)]">{formError}</p> : null}
+          {formError ? <p className="text-sm text-[var(--danger-700)]">{formError}</p> : null}
         </div>
         <DialogFooter>
           <DialogClose asChild>
@@ -1508,12 +1497,8 @@ function KpiRewardTab({
           <div className="flex flex-col gap-3 border-b p-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-3">
-                <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${toneSurface.info}`}>
-                  <Target className="size-5" aria-hidden="true" />
-                </span>
-                <div>
-                  <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Theo nhân sự</p>
-                  <h2 className="mt-1 text-base font-bold">Mức tiền KPI theo từng nhân sự</h2>
+                <div className="min-w-0">
+                  <h2 className="text-base font-semibold tracking-tight text-foreground">Mức tiền KPI theo từng nhân sự</h2>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {directory.isFiltering
                       ? `${formatNumber(directory.filtered.length)}/${formatNumber(directory.employees.length)} nhân sự khớp bộ lọc`
@@ -1791,7 +1776,7 @@ function CreateKpiRewardRateDialog({ employeeId, groups, compact = false }: { em
             <Label htmlFor="kpi-rate-from">Hiệu lực từ ngày</Label>
             <Input id="kpi-rate-from" type="date" value={effectiveFrom} onChange={(event) => setEffectiveFrom(event.target.value)} />
           </div>
-          {formError ? <p className="text-sm text-[var(--danger-600)]">{formError}</p> : null}
+          {formError ? <p className="text-sm text-[var(--danger-700)]">{formError}</p> : null}
         </div>
         <DialogFooter>
           <DialogClose asChild><Button variant="outline">Hủy</Button></DialogClose>
@@ -1871,7 +1856,7 @@ function EditKpiRewardRateDialog({ rate }: { rate: KpiRewardRate }) {
               <p className="text-xs text-muted-foreground">Có hiệu lực đến hết ngày này. Để trống nếu chưa có ngày kết thúc.</p>
             </div>
           </div>
-          {formError ? <p className="text-sm text-[var(--danger-600)]">{formError}</p> : null}
+          {formError ? <p className="text-sm text-[var(--danger-700)]">{formError}</p> : null}
         </div>
         <DialogFooter>
           <DialogClose asChild><Button variant="outline">Hủy</Button></DialogClose>
@@ -1926,12 +1911,9 @@ function VersionHistoryTab({ ruleSets, onView, currentId }: { ruleSets: RewardRu
       <CardContent className="p-0">
         <div className="flex items-center justify-between gap-3 border-b p-5">
           <div className="flex items-center gap-3">
-            <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${toneSurface.info}`}>
-              <History className="size-5" aria-hidden="true" />
-            </span>
-            <div>
-              <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Nhật ký cấu hình</p>
-              <h2 className="mt-1 text-base font-bold">Lịch sử phiên bản bộ quy tắc</h2>
+            <div className="min-w-0">
+              <h2 className="text-base font-semibold tracking-tight text-foreground">Lịch sử phiên bản bộ quy tắc</h2>
+              <p className="mt-1 text-xs text-muted-foreground">Nhật ký cấu hình lương &amp; thưởng</p>
             </div>
           </div>
           <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">
@@ -1994,7 +1976,7 @@ function Rule({ label, value, success }: { label: string; value: string; success
   return (
     <div className="flex flex-wrap justify-between gap-x-4 gap-y-1 py-3">
       <dt className="text-muted-foreground">{label}</dt>
-      <dd className={`text-right font-semibold ${success ? 'text-[var(--success-600)]' : ''}`}>{value}</dd>
+      <dd className={`text-right font-semibold ${success ? 'text-[var(--success-700)]' : ''}`}>{value}</dd>
     </div>
   )
 }

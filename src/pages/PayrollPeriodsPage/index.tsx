@@ -56,6 +56,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { DeadlineChip } from '@/components/shared/DeadlineChip'
 import { EmptyState } from '@/components/shared/EmptyState'
+import { PageHeader } from '@/components/shared/PageHeader'
 import { ErrorState } from '@/components/shared/ErrorState'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { WorkflowSteps } from '@/components/shared/WorkflowSteps'
@@ -133,14 +134,14 @@ function PayrollStatusMetric({
 }) {
   const Icon = STATUS_ICON[status]
   const content = (
-    <div className={`flex min-h-24 items-center gap-3.5 rounded-xl border px-5 py-4 text-left shadow-[0_6px_20px_rgb(15_23_42/0.035)] transition-[background-color,border-color,box-shadow] sm:min-h-28 lg:px-6 ${selected ? 'border-primary/35 bg-[#f4f9fd] shadow-[0_8px_24px_rgb(7_90_168/0.08)]' : 'border-border bg-white group-hover:border-slate-400 group-hover:bg-slate-50/80'}`}>
-      <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${toneSurface[STATUS_TONE[status]]}`}>
-        <Icon className="size-5" aria-hidden="true" />
+    <div className={`flex min-h-22 items-center gap-3 rounded-2xl border px-5 py-4 text-left transition-colors sm:min-h-24 lg:px-6 ${selected ? 'border-primary/35 bg-primary/5' : 'border-border bg-card group-hover:bg-muted/40'}`}>
+      <span className={`grid size-8 shrink-0 place-items-center rounded-lg ${toneSurface[STATUS_TONE[status]]}`}>
+        <Icon className="size-4.5" aria-hidden="true" />
       </span>
       <div className="min-w-0">
-        <p className="text-xs font-medium text-slate-500">Kỳ {STATUS_LABEL[status].toLowerCase()}</p>
-        {loading ? <Skeleton className="mt-2 h-7 w-16" /> : <strong className="mt-0.5 block text-2xl font-bold tracking-tight text-foreground tabular-nums">{formatNumber(value)}</strong>}
-        <p className={`mt-1 truncate text-xs ${selected ? 'font-medium text-primary' : 'text-slate-500'}`}>
+        <p className="text-xs font-medium text-muted-foreground">Kỳ {STATUS_LABEL[status].toLowerCase()}</p>
+        {loading ? <Skeleton className="mt-1.5 h-6 w-16" /> : <strong className="mt-0.5 block text-xl font-bold tracking-tight text-foreground tabular-nums">{formatNumber(value)}</strong>}
+        <p className={`mt-1 truncate text-xs ${selected ? 'font-medium text-primary' : 'text-muted-foreground'}`}>
           {selected ? 'Đang lọc theo trạng thái này' : STATUS_HINT[status]}
         </p>
       </div>
@@ -148,7 +149,7 @@ function PayrollStatusMetric({
   )
 
   return onSelect ? (
-    <button type="button" className="group w-full rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2" onClick={onSelect} aria-pressed={selected}>
+    <button type="button" className="group w-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={onSelect} aria-pressed={selected}>
       {content}
     </button>
   ) : content
@@ -262,49 +263,38 @@ export function PayrollPeriodsPage() {
   }
 
   return (
-    <div className="flex flex-col gap-5">
-      <section className="relative overflow-hidden rounded-2xl bg-white text-foreground shadow-[0_8px_30px_rgb(15_23_42/0.045)] ring-1 ring-border" aria-labelledby="payroll-periods-title">
-        <span className="absolute inset-y-0 left-0 w-1 bg-primary" aria-hidden="true" />
-        <span className="pointer-events-none absolute -right-12 -top-20 size-48 rounded-full bg-primary/[0.045]" aria-hidden="true" />
-
-        <div className="relative flex flex-col gap-4 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:py-6">
-          <div className="min-w-0">
-            <p className="text-[10px] font-bold tracking-[0.16em] text-primary uppercase">Vận hành lương</p>
-            <h1 id="payroll-periods-title" className="mt-1.5 text-2xl font-bold tracking-tight sm:text-[1.85rem]">Kỳ lương</h1>
-            <p className="mt-1.5 max-w-3xl text-sm leading-6 text-muted-foreground">
-              {canManage
-                ? `Hệ thống tự tạo và mở kỳ theo tháng; theo dõi vòng đời các kỳ năm ${selectedYear}.`
-                : `Theo dõi các kỳ lương theo từng tháng của năm ${selectedYear}.`}
-            </p>
-            <div className="mt-3 flex flex-wrap items-center gap-2.5" aria-label="Bộ lọc năm kỳ lương">
-              <span className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
-                <CalendarDays className="size-4 text-primary" aria-hidden="true" />
-                Năm quản lý
-              </span>
-              <Select value={String(selectedYear)} onValueChange={(value) => { setSelectedYear(Number(value)); setSelectedId(null); setStatusFilter(ALL); setSearch('') }}>
-                <SelectTrigger className="h-9 w-32 bg-white shadow-none" aria-label="Chọn năm quản lý kỳ lương"><SelectValue /></SelectTrigger>
-                <SelectContent>{availableYears.map((year) => <SelectItem key={year} value={String(year)}>Năm {year}</SelectItem>)}</SelectContent>
-              </Select>
-              <span className="text-xs text-muted-foreground"><strong className="font-semibold text-foreground tabular-nums">{periods.length}/12</strong> tháng đã có kỳ lương</span>
-            </div>
+    <div className="flex flex-col gap-4">
+      <PageHeader
+        eyebrow="Vận hành lương"
+        title="Kỳ lương"
+        description={canManage
+          ? `Hệ thống tự tạo và mở kỳ theo tháng; theo dõi vòng đời các kỳ năm ${selectedYear}.`
+          : `Theo dõi các kỳ lương theo từng tháng của năm ${selectedYear}.`}
+        meta={(
+          <div className="flex flex-wrap items-center gap-2.5" aria-label="Bộ lọc năm kỳ lương">
+            <Select value={String(selectedYear)} onValueChange={(value) => { setSelectedYear(Number(value)); setSelectedId(null); setStatusFilter(ALL); setSearch('') }}>
+              <SelectTrigger className="h-9 w-30" aria-label="Chọn năm quản lý kỳ lương"><SelectValue /></SelectTrigger>
+              <SelectContent>{availableYears.map((year) => <SelectItem key={year} value={String(year)}>Năm {year}</SelectItem>)}</SelectContent>
+            </Select>
+            <span className="text-xs text-muted-foreground"><strong className="font-semibold text-foreground tabular-nums">{periods.length}/12</strong> tháng đã có kỳ lương</span>
           </div>
-          <div className="flex shrink-0 flex-wrap gap-2">
-            <Button variant="outline" onClick={() => periodsQuery.refetch()} disabled={periodsQuery.isFetching}>
+        )}
+        action={(
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" size="icon" onClick={() => periodsQuery.refetch()} disabled={periodsQuery.isFetching} title="Làm mới danh sách kỳ lương" aria-label="Làm mới danh sách kỳ lương">
               <RefreshCw className={`size-4 ${periodsQuery.isFetching ? 'animate-spin' : ''}`} aria-hidden="true" />
-              <span className="hidden sm:inline">{periodsQuery.isFetching ? 'Đang tải…' : 'Làm mới'}</span>
             </Button>
             {canExport && periods.length > 0 ? (
-              <Button variant="outline" onClick={exportPeriodsCsv}>
+              <Button variant="outline" size="icon" onClick={exportPeriodsCsv} title="Xuất CSV danh sách kỳ lương" aria-label="Xuất CSV danh sách kỳ lương">
                 <Download className="size-4" aria-hidden="true" />
-                Xuất CSV
               </Button>
             ) : null}
             {canManage ? <CreatePeriodDialog /> : null}
           </div>
-        </div>
-      </section>
+        )}
+      />
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Thống kê kỳ lương">
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Thống kê kỳ lương">
         {PERIOD_STEPS.map((status) => (
           <PayrollStatusMetric
             key={status}
@@ -386,8 +376,8 @@ export function PayrollPeriodsPage() {
             {canManage ? (
               <Card className="py-0 xl:col-span-2">
                 <CardContent className="p-5">
-                  <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Snapshot tổ chức</p>
-                  <h2 className="mt-1 text-lg font-bold">Dữ liệu đã đóng băng theo kỳ</h2>
+                  <h2 className="text-base font-semibold tracking-tight text-foreground">Snapshot tổ chức</h2>
+                  <p className="mt-1 text-xs text-muted-foreground">Dữ liệu nhân sự đã đóng băng theo kỳ</p>
                   {highlighted.status === 'DRAFT' ? (
                     <EmptyState
                       size="sm"
@@ -415,11 +405,11 @@ export function PayrollPeriodsPage() {
       <section className="grid gap-4 xl:grid-cols-5">
         <Card className="overflow-hidden py-0 xl:col-span-3">
           <CardContent className="p-0">
-            <div className="flex flex-col gap-4 border-b p-4">
+            <div className="flex flex-col gap-4 border-b border-border p-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Lịch sử vận hành</p>
-                  <h2 className="mt-1 text-base font-bold">Các kỳ lương năm {selectedYear}</h2>
+                  <h2 className="text-base font-semibold tracking-tight text-foreground">Các kỳ lương năm {selectedYear}</h2>
+                  <p className="mt-1 text-xs text-muted-foreground">Chọn một kỳ để xem chi tiết phía trên</p>
                 </div>
                 <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">
                   {isFiltering
@@ -451,7 +441,7 @@ export function PayrollPeriodsPage() {
                 </div>
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger className="w-full" aria-label="Lọc theo trạng thái kỳ">
-                    <SlidersHorizontal className="size-3.5 text-primary" aria-hidden="true" />
+                    <SlidersHorizontal className="size-3.5 text-muted-foreground" aria-hidden="true" />
                     <SelectValue placeholder="Trạng thái" />
                   </SelectTrigger>
                   <SelectContent>
@@ -510,7 +500,7 @@ export function PayrollPeriodsPage() {
                         <TableCell className="whitespace-nowrap">
                           {formatDate(item.approvalDeadline)}
                           {remainingDays !== null && remainingDays <= 7 ? (
-                            <span className={`mt-0.5 block text-xs font-semibold ${remainingDays < 0 ? 'text-[var(--danger-600)]' : 'text-[var(--warning-600)]'}`}>
+                            <span className={`mt-0.5 block text-xs font-semibold ${remainingDays < 0 ? 'text-[var(--danger-700)]' : 'text-[var(--warning-700)]'}`}>
                               {remainingDays < 0 ? `Quá hạn ${Math.abs(remainingDays)} ngày` : remainingDays === 0 ? 'Hạn hôm nay' : `Còn ${remainingDays} ngày`}
                             </span>
                           ) : null}
@@ -542,8 +532,8 @@ export function PayrollPeriodsPage() {
         {canManage ? (
           <Card className="py-0 xl:col-span-2">
             <CardContent className="p-5">
-              <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Nguyên tắc vận hành kỳ lương</p>
-              <h2 className="mt-1 text-lg font-bold">Vòng đời kỳ lương</h2>
+              <h2 className="text-base font-semibold tracking-tight text-foreground">Vòng đời kỳ lương</h2>
+              <p className="mt-1 text-xs text-muted-foreground">Ba nguyên tắc không thể đảo ngược</p>
               <div className="mt-5 space-y-4">
                 <Rule
                   icon={CalendarDays}
@@ -818,7 +808,7 @@ function CreatePeriodDialog() {
               onChange={(event) => setApprovalDeadline(event.target.value)}
             />
           </div>
-          {formError ? <p className="text-sm text-[var(--danger-600)]">{formError}</p> : null}
+          {formError ? <p className="text-sm text-[var(--danger-700)]">{formError}</p> : null}
         </div>
         <DialogFooter>
           <DialogClose asChild>

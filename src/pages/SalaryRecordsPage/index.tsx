@@ -210,7 +210,7 @@ export function SalaryRecordsPage() {
   if (personalSalaryView) {
     const personalRecord = selfDetailQuery.data
     const viewingPastVersion = Boolean(selfVersion?.periodId === selectedPeriodId && selfVersion.id !== selfRow?.salaryRecord?.id)
-    return <div className="flex flex-col gap-5">
+    return <div className="flex flex-col gap-4">
       <PageHeader
         eyebrow="Lương & thưởng cá nhân"
         title="Thu nhập của tôi"
@@ -218,13 +218,13 @@ export function SalaryRecordsPage() {
       />
 
       <Card className="py-0"><CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Kỳ đang xem</p>
-          <h2 className="mt-1 text-base font-bold">{selectedPeriod?.name ?? 'Chưa có kỳ lương'}</h2>
+        <div className="min-w-0">
+          <h2 className="text-base font-semibold tracking-tight text-foreground">{selectedPeriod?.name ?? 'Chưa có kỳ lương'}</h2>
+          <p className="mt-1 text-xs text-muted-foreground">Kỳ đang xem</p>
         </div>
         <Select value={selectedPeriodId || undefined} onValueChange={(value) => { setPeriodId(value); setSelfVersion(null); setGoalRecord(null) }}>
           <SelectTrigger className="w-full sm:w-64" aria-label="Chọn kỳ lương của tôi">
-            <CalendarDays className="size-4 text-primary" aria-hidden="true" />
+            <CalendarDays className="size-4 text-muted-foreground" aria-hidden="true" />
             <SelectValue placeholder="Chọn kỳ lương" />
           </SelectTrigger>
           <SelectContent>{periods.map((period) => <SelectItem key={period.id} value={period.id}>{period.name} · {periodStatusLabel(period.status)}</SelectItem>)}</SelectContent>
@@ -244,7 +244,7 @@ export function SalaryRecordsPage() {
           <Card className="border-primary/20 bg-primary/5 py-0"><CardContent className="flex flex-col gap-5 p-5 sm:flex-row sm:items-end sm:justify-between sm:p-6">
             <div>
               <div className="flex flex-wrap items-center gap-2"><span className="text-sm font-semibold text-muted-foreground">{viewingPastVersion ? 'Thu nhập phiên bản đang xem' : 'Tổng thu nhập kỳ này'}</span><SalaryStatus record={personalRecord} /></div>
-              <strong className="mt-2 block text-3xl font-extrabold tracking-tight text-primary tabular-nums sm:text-4xl">{formatVnd(personalRecord.totalSalaryAmount)}</strong>
+              <strong className="mt-2 block text-3xl font-bold tracking-tight text-primary tabular-nums sm:text-4xl">{formatVnd(personalRecord.totalSalaryAmount)}</strong>
               <p className="mt-2 text-sm text-muted-foreground">{personalRecord.employeeName} · {personalRecord.employeeCode} · {personalRecord.jobTitle}</p>
             </div>
             {viewingPastVersion
@@ -259,7 +259,7 @@ export function SalaryRecordsPage() {
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-4">
       <PageHeader
         eyebrow="Tính lương & thưởng"
         title="Danh sách lương"
@@ -302,7 +302,7 @@ export function SalaryRecordsPage() {
           label="Đã khóa"
           value={`${totals.locked} / ${rows.length}`}
           progress={toPercent(totals.locked, rows.length)}
-          note={`${toPercent(totals.locked, rows.length)}% hồ sơ đã phê duyệt cuối`}
+          note="Hồ sơ đã qua phê duyệt cuối"
           loading={salariesQuery.isLoading}
           onSelect={totals.locked > 0 ? () => setStatusFilter('LOCKED') : undefined}
         />
@@ -328,13 +328,11 @@ export function SalaryRecordsPage() {
 
       <Card className="overflow-hidden py-0">
         <CardContent className="p-0">
-          <div className="flex flex-col gap-3 border-b p-4">
+          <div className="flex flex-col gap-3 border-b border-border p-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
-                <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                  {selectedPeriod?.name ?? 'Chưa chọn kỳ'}
-                </p>
-                <h2 className="mt-1 text-base font-bold">Bảng lương nhân sự</h2>
+                <h2 className="text-base font-semibold tracking-tight text-foreground">Bảng lương nhân sự</h2>
+                <p className="mt-1 text-xs text-muted-foreground">{selectedPeriod?.name ?? 'Chưa chọn kỳ'}</p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">
@@ -378,7 +376,7 @@ export function SalaryRecordsPage() {
 
               <Select value={selectedPeriodId || undefined} onValueChange={setPeriodId}>
                 <SelectTrigger className="w-full" aria-label="Chọn kỳ lương">
-                  <CalendarDays className="size-3.5 text-primary" aria-hidden="true" />
+                  <CalendarDays className="size-3.5 text-muted-foreground" aria-hidden="true" />
                   <SelectValue placeholder="Chọn kỳ lương" />
                 </SelectTrigger>
                 <SelectContent>
@@ -391,7 +389,7 @@ export function SalaryRecordsPage() {
               {canFilterOrganization ? (
                 <Select value={departmentId || ALL} onValueChange={(value) => { setDepartmentId(value === ALL ? '' : value); setTeamId('') }}>
                   <SelectTrigger className="w-full" aria-label="Lọc theo phòng ban">
-                    <Building2 className="size-3.5 text-primary" aria-hidden="true" />
+                    <Building2 className="size-3.5 text-muted-foreground" aria-hidden="true" />
                     <SelectValue placeholder="Tất cả phòng ban" />
                   </SelectTrigger>
                   <SelectContent>
@@ -403,7 +401,7 @@ export function SalaryRecordsPage() {
 
               <Select value={teamId || ALL} onValueChange={(value) => setTeamId(value === ALL ? '' : value)}>
                 <SelectTrigger className="w-full" aria-label="Lọc theo team">
-                  <UsersRound className="size-3.5 text-primary" aria-hidden="true" />
+                  <UsersRound className="size-3.5 text-muted-foreground" aria-hidden="true" />
                   <SelectValue placeholder="Tất cả team" />
                 </SelectTrigger>
                 <SelectContent>
@@ -414,7 +412,7 @@ export function SalaryRecordsPage() {
 
               <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as RowStatusFilter)}>
                 <SelectTrigger className="w-full" aria-label="Lọc theo trạng thái lương">
-                  <SlidersHorizontal className="size-3.5 text-primary" aria-hidden="true" />
+                  <SlidersHorizontal className="size-3.5 text-muted-foreground" aria-hidden="true" />
                   <SelectValue placeholder="Trạng thái" />
                 </SelectTrigger>
                 <SelectContent>
@@ -516,7 +514,7 @@ export function SalaryRecordsPage() {
                             </>
                           ) : '—'}
                         </TableCell>
-                        <TableCell className="text-right font-extrabold whitespace-nowrap text-primary tabular-nums">
+                        <TableCell className="text-right font-bold whitespace-nowrap text-foreground tabular-nums">
                           {record ? formatVnd(record.totalSalaryAmount) : '—'}
                         </TableCell>
                         <TableCell>{record ? <SalaryStatus record={record} /> : <StatusBadge>Chưa tính</StatusBadge>}</TableCell>
@@ -612,7 +610,7 @@ function SalaryGoalDialog({ selected, onClose }: { selected: { id: string; emplo
               <label htmlFor="salary-goal-input" className="mb-2 block text-sm font-semibold">Thu nhập mong muốn trong kỳ</label>
               <MoneyInput id="salary-goal-input" value={targetInput} onValueChange={setTargetInput} placeholder="Ví dụ: 20.000.000" aria-describedby="salary-goal-hint" />
             </div>
-            <div className="rounded-xl bg-muted/50 px-4 py-3">
+            <div className="rounded-xl bg-muted/40 px-4 py-3">
               <span className="block text-xs text-muted-foreground">Thu nhập đang tính</span>
               <strong className="mt-1 block text-lg tabular-nums">{formatVnd(record.totalSalaryAmount)}</strong>
             </div>
@@ -674,19 +672,19 @@ function SalaryDetailDialog({ id, canApprove, canCreateRevision, onClose, onSele
 
 function SalaryBreakdownContent({ record, onSelectVersion, personal = false }: { record: SalaryBreakdown; onSelectVersion: (id: string) => void; personal?: boolean }) {
   return <div className="space-y-4">
-    {record.warnings.length > 0 ? <Alert className="border-[var(--danger-500)]/25 bg-[var(--danger-500)]/6 text-foreground"><AlertCircle className="text-[var(--danger-600)]" /><AlertTitle>{record.warnings.length} cảnh báo cần xử lý</AlertTitle><AlertDescription><ul className="mt-2 list-disc space-y-1 pl-4">{record.warnings.map((warning, index) => <li key={`${warning.code}-${index}`}>{warning.message}</li>)}</ul></AlertDescription></Alert> : null}
+    {record.warnings.length > 0 ? <Alert className="border-[var(--danger-500)]/25 bg-[var(--danger-500)]/6 text-foreground"><AlertCircle className="text-[var(--danger-700)]" /><AlertTitle>{record.warnings.length} cảnh báo cần xử lý</AlertTitle><AlertDescription><ul className="mt-2 list-disc space-y-1 pl-4">{record.warnings.map((warning, index) => <li key={`${warning.code}-${index}`}>{warning.message}</li>)}</ul></AlertDescription></Alert> : null}
     <Card className={`py-0 ${record.status === 'LOCKED' ? 'border-[var(--success-500)]/30 bg-[var(--success-500)]/6' : ''}`}><CardContent className="grid gap-4 p-4 sm:grid-cols-3">
       <div><p className="text-xs text-muted-foreground">Trạng thái</p><div className="mt-1"><SalaryStatus record={record} /></div></div>
       <div><p className="text-xs text-muted-foreground">{personal ? 'Phiên bản đang xem' : 'Phiên bản hiện tại'}</p><strong className="mt-1 block">Phiên bản {record.versionNumber}</strong></div>
       <div><p className="text-xs text-muted-foreground">Người duyệt</p><strong className="mt-1 block">{record.approvedBy?.fullName ?? 'Chưa được duyệt'}</strong>{record.approvedAt ? <span className="text-xs text-muted-foreground">{formatDateTime(record.approvedAt)}</span> : null}</div>
     </CardContent></Card>
     <div className="grid gap-4 sm:grid-cols-2">
-      <Card className="py-0"><CardContent className="p-4"><p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">{personal ? 'Doanh thu & lượt xem' : 'Nguồn snapshot'}</p><dl className="mt-3 divide-y text-sm"><Amount label="Doanh thu" value={formatVnd(record.revenueAmount)} /><Amount label="Mốc doanh thu" value={record.revenueRewardBracketLabel ?? 'Không khớp'} /><Amount label="Hoa hồng" value={`${formatPercent(record.commissionRatePercent)} · ${formatVnd(record.commissionAmount)}`} /><Amount label="Views hợp lệ" value={formatNumber(record.totalViews)} /><Amount label="RPM / 1.000 views" value={formatVnd(record.rpmRatePer1000Views)} /></dl></CardContent></Card>
-      <Card className="py-0"><CardContent className="p-4"><p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Cấu phần thu nhập</p><dl className="mt-3 divide-y text-sm"><Amount label="Lương cơ bản" value={formatVnd(record.baseSalaryAmount)} /><Amount label="Thưởng KPI" value={formatVnd(record.kpiRewardAmount)} /><Amount label="Thưởng OKR" value={formatVnd(record.okrRewardAmount)} /><Amount label="Hoa hồng" value={formatVnd(record.commissionAmount)} /><Amount label="Tiền RPM" value={formatVnd(record.rpmRewardAmount)} />{record.components.length > 0 ? <Amount label="Khoản bổ sung" value={formatVnd(record.additionalComponentAmount)} /> : null}<Amount label="Tổng lương" value={formatVnd(record.totalSalaryAmount)} strong /></dl></CardContent></Card>
+      <Card className="py-0"><CardContent className="p-4"><p className="text-sm font-semibold text-foreground">{personal ? 'Doanh thu & lượt xem' : 'Nguồn snapshot'}</p><dl className="mt-3 divide-y text-sm"><Amount label="Doanh thu" value={formatVnd(record.revenueAmount)} /><Amount label="Mốc doanh thu" value={record.revenueRewardBracketLabel ?? 'Không khớp'} /><Amount label="Hoa hồng" value={`${formatPercent(record.commissionRatePercent)} · ${formatVnd(record.commissionAmount)}`} /><Amount label="Views hợp lệ" value={formatNumber(record.totalViews)} /><Amount label="RPM / 1.000 views" value={formatVnd(record.rpmRatePer1000Views)} /></dl></CardContent></Card>
+      <Card className="py-0"><CardContent className="p-4"><p className="text-sm font-semibold text-foreground">Cấu phần thu nhập</p><dl className="mt-3 divide-y text-sm"><Amount label="Lương cơ bản" value={formatVnd(record.baseSalaryAmount)} /><Amount label="Thưởng KPI" value={formatVnd(record.kpiRewardAmount)} /><Amount label="Thưởng OKR" value={formatVnd(record.okrRewardAmount)} /><Amount label="Hoa hồng" value={formatVnd(record.commissionAmount)} /><Amount label="Tiền RPM" value={formatVnd(record.rpmRewardAmount)} />{record.components.length > 0 ? <Amount label="Khoản bổ sung" value={formatVnd(record.additionalComponentAmount)} /> : null}<Amount label="Tổng lương" value={formatVnd(record.totalSalaryAmount)} strong /></dl></CardContent></Card>
     </div>
     <BreakdownTable title="KPI theo team" empty="Không có nhóm KPI được gán." rows={record.kpiItems.map((item) => ({ id: item.id, name: `${item.teamName} · ${item.kpiGroupName} · tỷ trọng ${item.salaryWeightPercent}%`, progress: item.progressPercent, threshold: item.thresholdPercent, configured: item.rewardAmount, earned: item.earnedAmount, achieved: item.isAchieved }))} />
     <BreakdownTable title="OKR" empty="Không có OKR trong kỳ." rows={record.okrItems.map((item) => ({ id: item.id, name: item.title, progress: item.progressPercent, threshold: item.thresholdPercent, configured: item.rewardAmount, earned: item.earnedAmount, achieved: item.isAchieved }))} />
-    {record.versionHistory.length > 1 ? <Card className="overflow-hidden py-0"><CardContent className="p-0"><div className="flex items-center gap-2 border-b p-4"><History className="size-4 text-primary" /><h3 className="font-bold">Lịch sử phiên bản</h3></div><div className="divide-y">{record.versionHistory.map((version) => <button type="button" key={version.id} className="flex w-full items-center justify-between gap-4 p-4 text-left transition-colors hover:bg-muted/40" onClick={() => onSelectVersion(version.id)}><span><strong className="block">Phiên bản {version.versionNumber}{version.id === record.id ? ' · Đang xem' : ''}</strong><span className="mt-0.5 block text-xs text-muted-foreground">{version.approvedBy ? `Duyệt bởi ${version.approvedBy.fullName}` : `Tạo bởi ${version.calculatedBy.fullName}`} · {formatDateTime(version.lockedAt ?? version.calculatedAt)}</span></span><span className="flex items-center gap-3"><span className="font-semibold">{formatVnd(version.totalSalaryAmount)}</span><StatusBadge tone={STATUS_META[version.status].tone}>{STATUS_META[version.status].label}</StatusBadge></span></button>)}</div></CardContent></Card> : null}
+    {record.versionHistory.length > 1 ? <Card className="overflow-hidden py-0"><CardContent className="p-0"><div className="flex items-center gap-2 border-b border-border p-4"><History className="size-4 text-muted-foreground" /><h3 className="text-sm font-semibold text-foreground">Lịch sử phiên bản</h3></div><div className="divide-y">{record.versionHistory.map((version) => <button type="button" key={version.id} className="flex w-full items-center justify-between gap-4 p-4 text-left transition-colors hover:bg-muted/40" onClick={() => onSelectVersion(version.id)}><span><strong className="block">Phiên bản {version.versionNumber}{version.id === record.id ? ' · Đang xem' : ''}</strong><span className="mt-0.5 block text-xs text-muted-foreground">{version.approvedBy ? `Duyệt bởi ${version.approvedBy.fullName}` : `Tạo bởi ${version.calculatedBy.fullName}`} · {formatDateTime(version.lockedAt ?? version.calculatedAt)}</span></span><span className="flex items-center gap-3"><span className="font-semibold">{formatVnd(version.totalSalaryAmount)}</span><StatusBadge tone={STATUS_META[version.status].tone}>{STATUS_META[version.status].label}</StatusBadge></span></button>)}</div></CardContent></Card> : null}
   </div>
 }
 
@@ -694,13 +692,13 @@ function SalaryActionDialog({ action, pending, onClose, onConfirm }: { action: {
   const approving = action?.type === 'approve'
   return <Dialog open={Boolean(action)} onOpenChange={(open) => !open && !pending && onClose()}><DialogContent>
     <DialogHeader><DialogTitle>{approving ? 'Duyệt và khóa bảng lương?' : 'Tạo phiên bản điều chỉnh?'}</DialogTitle><DialogDescription>{action ? (approving ? `Bảng lương phiên bản ${action.record.versionNumber} của ${action.employeeName} sẽ được khóa ở mức ${formatVnd(action.record.totalSalaryAmount)}. Sau đó không thể sửa trực tiếp.` : `Hệ thống sẽ sao chép bảng lương phiên bản ${action.record.versionNumber} của ${action.employeeName} thành một bản nháp mới để tính lại. Bản đã khóa vẫn được giữ nguyên.`) : ''}</DialogDescription></DialogHeader>
-    <div className="rounded-xl border bg-muted/30 p-4"><div className="flex items-center gap-3"><span className={`grid size-10 place-items-center rounded-full ${approving ? toneSurface.success : toneSurface.info}`}>{approving ? <LockKeyhole className="size-5" /> : <RefreshCw className="size-5" />}</span><div><strong className="block">{action?.employeeName}</strong><span className="text-xs text-muted-foreground">Phiên bản {action?.record.versionNumber} · {action ? formatVnd(action.record.totalSalaryAmount) : ''}</span></div></div></div>
+    <div className="rounded-xl border border-border bg-muted/30 p-4"><div className="flex items-center gap-3"><span className={`grid size-10 place-items-center rounded-full ${approving ? toneSurface.success : toneSurface.info}`}>{approving ? <LockKeyhole className="size-5" /> : <RefreshCw className="size-5" />}</span><div><strong className="block">{action?.employeeName}</strong><span className="text-xs text-muted-foreground">Phiên bản {action?.record.versionNumber} · {action ? formatVnd(action.record.totalSalaryAmount) : ''}</span></div></div></div>
     <DialogFooter><DialogClose asChild><Button variant="outline" disabled={pending}>Hủy</Button></DialogClose><Button onClick={onConfirm} disabled={pending}>{pending ? <Loader2 className="size-4 animate-spin" /> : approving ? <ShieldCheck className="size-4" /> : <RefreshCw className="size-4" />}{approving ? 'Xác nhận duyệt' : 'Tạo bản điều chỉnh'}</Button></DialogFooter>
   </DialogContent></Dialog>
 }
 
 function BreakdownTable({ title, empty, rows }: { title: string; empty: string; rows: Array<{ id: string; name: string; progress: string; threshold: string; configured: string; earned: string; achieved: boolean }> }) {
-  return <Card className="overflow-hidden py-0"><CardContent className="p-0"><div className="border-b p-4"><h3 className="font-bold">{title}</h3></div>{rows.length === 0 ? <p className="p-4 text-sm text-muted-foreground">{empty}</p> : <Table><TableHeader><TableRow><TableHead>Hạng mục</TableHead><TableHead>Tiến độ / ngưỡng</TableHead><TableHead>Mức cấu hình</TableHead><TableHead>Thực nhận</TableHead><TableHead>Kết quả</TableHead></TableRow></TableHeader><TableBody>{rows.map((row) => <TableRow key={row.id}><TableCell className="font-medium">{row.name}</TableCell><TableCell>{formatPercent(row.progress)} / {formatPercent(row.threshold)}</TableCell><TableCell>{formatVnd(row.configured)}</TableCell><TableCell className="font-semibold">{formatVnd(row.earned)}</TableCell><TableCell><StatusBadge tone={row.achieved ? 'success' : 'danger'}>{row.achieved ? 'Đạt' : 'Không đạt'}</StatusBadge></TableCell></TableRow>)}</TableBody></Table>}</CardContent></Card>
+  return <Card className="overflow-hidden py-0"><CardContent className="p-0"><div className="border-b border-border p-4"><h3 className="text-sm font-semibold text-foreground">{title}</h3></div>{rows.length === 0 ? <p className="p-4 text-sm text-muted-foreground">{empty}</p> : <Table><TableHeader><TableRow><TableHead>Hạng mục</TableHead><TableHead>Tiến độ / ngưỡng</TableHead><TableHead>Mức cấu hình</TableHead><TableHead>Thực nhận</TableHead><TableHead>Kết quả</TableHead></TableRow></TableHeader><TableBody>{rows.map((row) => <TableRow key={row.id}><TableCell className="font-medium">{row.name}</TableCell><TableCell>{formatPercent(row.progress)} / {formatPercent(row.threshold)}</TableCell><TableCell>{formatVnd(row.configured)}</TableCell><TableCell className="font-semibold">{formatVnd(row.earned)}</TableCell><TableCell><StatusBadge tone={row.achieved ? 'success' : 'danger'}>{row.achieved ? 'Đạt' : 'Không đạt'}</StatusBadge></TableCell></TableRow>)}</TableBody></Table>}</CardContent></Card>
 }
 
 function SortButton({

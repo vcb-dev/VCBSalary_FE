@@ -88,7 +88,7 @@ export function KpiSyncPage() {
 
   if (!canView) {
     return (
-      <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-4">
         <PageHeader
           eyebrow="Tích hợp dữ liệu"
           title="Đồng bộ KPI"
@@ -107,16 +107,15 @@ export function KpiSyncPage() {
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-4">
       <PageHeader
         eyebrow="Tích hợp dữ liệu"
         title="Đồng bộ KPI"
         description="Nhận target và actual KPI một chiều từ AutomationGenVideo theo team và kỳ lương."
         action={(
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={() => runsQuery.refetch()} disabled={runsQuery.isFetching}>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" size="icon" onClick={() => runsQuery.refetch()} disabled={runsQuery.isFetching} title="Làm mới lịch sử đồng bộ" aria-label="Làm mới lịch sử đồng bộ">
               <RefreshCw className={`size-4 ${runsQuery.isFetching ? 'animate-spin' : ''}`} aria-hidden="true" />
-              <span className="hidden sm:inline">{runsQuery.isFetching ? 'Đang tải…' : 'Làm mới'}</span>
             </Button>
             {canTrigger ? <RunSyncDialog /> : null}
           </div>
@@ -146,7 +145,7 @@ export function KpiSyncPage() {
           label="Lần chạy gần nhất"
           value={latest ? formatRelativeTime(latest.startedAt) : 'Chưa có'}
           valueTitle={latest ? formatDateTime(latest.startedAt) : undefined}
-          note={latest ? `${latest.payrollPeriod.name} · ${formatDateTime(latest.startedAt)}` : 'Chưa từng đồng bộ KPI'}
+          note={latest ? latest.payrollPeriod.name : 'Chưa từng đồng bộ KPI'}
           loading={runsQuery.isLoading}
         />
         <MetricCard
@@ -155,9 +154,7 @@ export function KpiSyncPage() {
           label="Tỉ lệ áp dụng"
           value={latest ? `${toPercent(latest.successfulRecords, latest.receivedRecords)}%` : '—'}
           progress={latest ? toPercent(latest.successfulRecords, latest.receivedRecords) : undefined}
-          note={latest
-            ? `${formatNumber(latest.successfulRecords)}/${formatNumber(latest.receivedRecords)} dòng nhận từ nguồn`
-            : 'Chưa có dữ liệu'}
+          note={latest ? 'Dòng đã ghi vào KPI trên tổng số nhận về' : 'Chưa có dữ liệu'}
           loading={runsQuery.isLoading}
         />
         <MetricCard
@@ -173,9 +170,7 @@ export function KpiSyncPage() {
           tone={latest && needsAttention(latest) > 0 ? 'warning' : 'success'}
           label="Cần xử lý"
           value={latest ? formatNumber(needsAttention(latest)) : '0'}
-          note={latest
-            ? `${formatNumber(latest.conflictRecords)} xung đột · ${formatNumber(latest.manualEntryCount)} nhập tay · ${formatNumber(latest.failedRecords)} lỗi`
-            : 'Chưa có dữ liệu'}
+          note={latest ? 'Gồm xung đột, dòng nhập tay và dòng lỗi' : 'Chưa có dữ liệu'}
           loading={runsQuery.isLoading}
           onSelect={latest && needsAttention(latest) > 0 ? () => setDetailId(latest.id) : undefined}
         />
@@ -223,15 +218,12 @@ function LatestRun({ run, onDetail }: { run: KpiSyncRun; onDetail: () => void })
       <CardContent className="p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-              Lượt chạy gần nhất · tháng {run.month}
-            </p>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <h2 className="text-lg font-bold">{run.payrollPeriod.name}</h2>
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-base font-semibold tracking-tight text-foreground">Lượt chạy gần nhất</h2>
               <StatusBadge tone={statusTone(run.status)}>{STATUS_LABEL[run.status]}</StatusBadge>
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {formatDateTime(run.startedAt)}
+            <p className="mt-1 text-xs text-muted-foreground">
+              {run.payrollPeriod.name} · {formatDateTime(run.startedAt)}
               {run.finishedAt ? ` — ${formatDateTime(run.finishedAt)}` : ' · chưa kết thúc'}
               {run.triggeredBy ? ` · do ${run.triggeredBy.fullName} kích hoạt` : ''}
             </p>
@@ -239,7 +231,7 @@ function LatestRun({ run, onDetail }: { run: KpiSyncRun; onDetail: () => void })
           <Button variant="outline" size="sm" onClick={onDetail}>Xem chi tiết</Button>
         </div>
 
-        <div className="mt-5 grid grid-cols-2 divide-x divide-y rounded-lg border bg-muted/20 sm:grid-cols-5 sm:divide-y-0">
+        <div className="mt-4 grid grid-cols-2 divide-x divide-y divide-border rounded-lg border border-border bg-muted/30 sm:grid-cols-5 sm:divide-y-0">
           <Stat label="Nhận từ nguồn" value={run.receivedRecords} />
           <Stat label="Áp dụng" value={run.successfulRecords} tone={run.successfulRecords > 0 ? 'success' : 'muted'} />
           <Stat label="Bỏ qua" value={run.skippedRecords} />
@@ -282,10 +274,10 @@ function HistoryTable({
   return (
     <Card className="overflow-hidden py-0">
       <CardContent className="p-0">
-        <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Nhật ký tích hợp</p>
-            <h2 className="mt-1 text-base font-bold">Lịch sử đồng bộ</h2>
+        <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <h2 className="text-base font-semibold tracking-tight text-foreground">Lịch sử đồng bộ</h2>
+            <p className="mt-1 text-xs text-muted-foreground">Nhật ký các lượt nhận dữ liệu từ nguồn</p>
           </div>
           <div className="flex items-center gap-2">
             <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">
@@ -293,7 +285,7 @@ function HistoryTable({
             </span>
             <Select value={statusFilter} onValueChange={onStatusFilterChange}>
               <SelectTrigger className="w-44" aria-label="Lọc theo kết quả đồng bộ">
-                <Filter className="size-3.5 text-primary" aria-hidden="true" />
+                <Filter className="size-3.5 text-muted-foreground" aria-hidden="true" />
                 <SelectValue placeholder="Kết quả" />
               </SelectTrigger>
               <SelectContent>
@@ -525,7 +517,7 @@ function RunDetailDialog({ id, onOpenChange }: { id: string | null; onOpenChange
                 description="Toàn bộ dữ liệu nhận từ nguồn đã được áp dụng thành công."
               />
             ) : (
-              <div className="max-h-[55vh] overflow-auto rounded-lg border">
+              <div className="max-h-[55vh] overflow-auto rounded-lg border border-border">
                 <Table>
                   <TableHeader>
                     <TableRow>

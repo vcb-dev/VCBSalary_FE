@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
-  ArrowDown, ArrowUp, ArrowUpDown, BarChart3, CalendarDays, ChevronRight, Download, Eye, FileClock,
+  ArrowDown, ArrowUp, ArrowUpDown, BarChart3, ChevronRight, Download, Eye, FileClock,
   Filter, RefreshCw, Search, UsersRound, X,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
@@ -161,55 +161,48 @@ export function TeamPerformancePage() {
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-4">
       <PageHeader
         eyebrow="Báo cáo"
         title="Hiệu suất team"
         description={`Dữ liệu tổng hợp theo từng tháng của năm ${chosenYear}, giới hạn theo phạm vi dữ liệu của tài khoản.`}
-        meta={(
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
-            <UsersRound className="size-3.5" aria-hidden="true" />
-            {teamId === 'all' ? 'Tất cả team được phân quyền' : teams.find(([id]) => id === teamId)?.[1] ?? 'Team không còn dữ liệu'}
-            {members.length > 0 ? ` · ${formatNumber(members.length)} thành viên` : ''}
-          </span>
-        )}
         action={(
           <div className="flex flex-wrap items-center gap-2">
-            <Select value={String(chosenYear)} onValueChange={(value) => { setChosenYear(Number(value)); setChosenPeriodId(''); setTeamId('all') }}>
-              <SelectTrigger className="w-full min-w-32 sm:w-36" aria-label="Chọn năm báo cáo"><CalendarDays className="size-3.5 text-primary" aria-hidden="true" /><SelectValue /></SelectTrigger>
-              <SelectContent>{availableYears.map((year) => <SelectItem key={year} value={String(year)}>Năm {year}</SelectItem>)}</SelectContent>
-            </Select>
-            <Select value={teamId} onValueChange={setTeamId}>
-              <SelectTrigger className="w-full min-w-44 sm:w-44" aria-label="Lọc theo team">
-                <UsersRound className="size-3.5 text-primary" aria-hidden="true" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent searchPlaceholder="Tìm team...">
-                <SelectItem value="all">Tất cả team</SelectItem>
-                {teams.map(([id, name]) => <SelectItem key={id} value={id}>{name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={periodId || undefined} onValueChange={setChosenPeriodId}>
-              <SelectTrigger className="w-full min-w-44 sm:w-48" aria-label="Chọn kỳ lương">
-                <CalendarDays className="size-3.5 text-primary" aria-hidden="true" />
-                <SelectValue placeholder="Chọn kỳ lương" />
-              </SelectTrigger>
-              <SelectContent>
-                {periods.map((period) => <SelectItem key={period.id} value={period.id}>{period.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Button variant="outline" onClick={refreshAll} disabled={refreshing}>
+            <Button variant="outline" size="icon" onClick={refreshAll} disabled={refreshing} title="Làm mới dữ liệu hiệu suất" aria-label="Làm mới dữ liệu hiệu suất">
               <RefreshCw className={`size-4 ${refreshing ? 'animate-spin' : ''}`} aria-hidden="true" />
-              <span className="hidden sm:inline">{refreshing ? 'Đang tải…' : 'Làm mới'}</span>
             </Button>
             {canExport && members.length > 0 ? (
-              <Button variant="outline" onClick={exportCsv}>
-                <Download className="size-4" aria-hidden="true" />Xuất CSV
+              <Button variant="outline" size="icon" onClick={exportCsv} title="Xuất CSV hiệu suất team" aria-label="Xuất CSV hiệu suất team">
+                <Download className="size-4" aria-hidden="true" />
               </Button>
             ) : null}
           </div>
         )}
       />
+
+      {/* Bộ lọc tách khỏi header: ba ô chọn nhồi vào vùng hành động làm header phình ra và xuống dòng lộn xộn. */}
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card px-3 py-2.5" aria-label="Bộ lọc hiệu suất team">
+        <Select value={String(chosenYear)} onValueChange={(value) => { setChosenYear(Number(value)); setChosenPeriodId(''); setTeamId('all') }}>
+          <SelectTrigger className="w-full sm:w-30" aria-label="Chọn năm báo cáo"><SelectValue /></SelectTrigger>
+          <SelectContent>{availableYears.map((year) => <SelectItem key={year} value={String(year)}>Năm {year}</SelectItem>)}</SelectContent>
+        </Select>
+        <Select value={periodId || undefined} onValueChange={setChosenPeriodId}>
+          <SelectTrigger className="w-full sm:w-46" aria-label="Chọn kỳ lương"><SelectValue placeholder="Chọn kỳ lương" /></SelectTrigger>
+          <SelectContent>
+            {periods.map((period) => <SelectItem key={period.id} value={period.id}>{period.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={teamId} onValueChange={setTeamId}>
+          <SelectTrigger className="w-full sm:w-46" aria-label="Lọc theo team"><SelectValue /></SelectTrigger>
+          <SelectContent searchPlaceholder="Tìm team...">
+            <SelectItem value="all">Tất cả team</SelectItem>
+            {teams.map(([id, name]) => <SelectItem key={id} value={id}>{name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <span className="text-xs text-muted-foreground sm:ml-auto sm:pr-1">
+          {loading ? 'Đang tải…' : `${formatNumber(members.length)} thành viên`}
+        </span>
+      </div>
 
       {hasError ? (
         <ErrorState
@@ -235,7 +228,6 @@ export function TeamPerformancePage() {
             label="Doanh thu team"
             value={formatCompactMoney(Number(totalRevenue))}
             valueTitle={formatMoney(Number(totalRevenue))}
-            progress={toPercent(revenueReady, members.length)}
             note={`${formatNumber(revenueReady)}/${formatNumber(members.length)} nhân sự đã có số liệu`}
             loading={loading}
           />
@@ -246,7 +238,6 @@ export function TeamPerformancePage() {
             tone={trafficReady === members.length && members.length > 0 ? 'success' : 'warning'}
             label="Traffic hợp lệ"
             value={formatNumber(Number(acceptedViews))}
-            progress={toPercent(trafficReady, members.length)}
             note={`${formatNumber(trafficReady)}/${formatNumber(members.length)} hồ sơ hoàn tất`}
             loading={loading}
           />
@@ -257,7 +248,6 @@ export function TeamPerformancePage() {
             tone={salaryLocked === members.length && members.length > 0 ? 'success' : 'warning'}
             label="Bảng lương đã khóa"
             value={`${formatNumber(salaryLocked)} / ${formatNumber(members.length)}`}
-            progress={toPercent(salaryLocked, members.length)}
             note="Đã phê duyệt cuối"
             loading={loading}
           />
@@ -268,12 +258,12 @@ export function TeamPerformancePage() {
         <Card className="py-0 xl:col-span-3">
           <CardContent className="p-5">
             <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Mức độ sẵn sàng</p>
-                <h2 className="mt-1 text-lg font-bold">Sẵn sàng tính và khóa lương</h2>
+              <div className="min-w-0">
+                <h2 className="text-base font-semibold tracking-tight text-foreground">Mức độ sẵn sàng</h2>
+                <p className="mt-1 text-xs text-muted-foreground">Đủ dữ liệu để tính và khóa lương chưa</p>
               </div>
               <StatusBadge tone={members.length > 0 && salaryLocked === members.length ? 'success' : 'warning'}>
-                {formatNumber(salaryLocked)} / {formatNumber(members.length)}
+                {members.length > 0 && salaryLocked === members.length ? 'Đã sẵn sàng' : 'Còn thiếu dữ liệu'}
               </StatusBadge>
             </div>
             <div className="mt-5 space-y-4">
@@ -286,8 +276,8 @@ export function TeamPerformancePage() {
 
         <Card className="py-0 xl:col-span-2">
           <CardContent className="flex h-full flex-col p-5">
-            <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">KPI & OKR</p>
-            <h2 className="mt-1 text-lg font-bold">Chi tiết hiệu suất</h2>
+            <h2 className="text-base font-semibold tracking-tight text-foreground">KPI &amp; OKR</h2>
+            <p className="mt-1 text-xs text-muted-foreground">Chi tiết hiệu suất từng người</p>
             <p className="mt-3 text-sm leading-6 text-muted-foreground">
               KPI và OKR được xét theo từng đầu mục. Mở màn KPI &amp; OKR để xem tiến độ và trạng thái duyệt hiện thời của từng người.
             </p>
@@ -354,11 +344,11 @@ function MembersTable({
   return (
     <Card className="overflow-hidden py-0">
       <CardContent className="p-0">
-        <div className="flex flex-col gap-3 border-b p-4">
+        <div className="flex flex-col gap-3 border-b border-border p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Thành viên trong phạm vi</p>
-              <h2 className="mt-1 text-base font-bold">Dữ liệu theo từng hồ sơ</h2>
+            <div className="min-w-0">
+              <h2 className="text-base font-semibold tracking-tight text-foreground">Thành viên trong phạm vi</h2>
+              <p className="mt-1 text-xs text-muted-foreground">Dữ liệu theo từng hồ sơ</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">

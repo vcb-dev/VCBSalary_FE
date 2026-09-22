@@ -48,6 +48,7 @@ import { ErrorState } from '@/components/shared/ErrorState'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { formatNumber } from '@/lib/format'
+import { toneSurface } from '@/lib/tone'
 
 const ORG_KEYS = {
   employees: ['org', 'employees'] as const,
@@ -221,7 +222,7 @@ export function EmployeesPage() {
   const activeDepartments = departments.filter((department) => department.status === 'ACTIVE').length
 
   return (
-    <div className="flex flex-col gap-4 lg:gap-5">
+    <div className="flex flex-col gap-4">
       <PageHeader
         eyebrow="Tổ chức"
         title="Nhân sự & team"
@@ -236,27 +237,27 @@ export function EmployeesPage() {
         }
       />
 
-      <section className="overflow-hidden rounded-2xl bg-white shadow-[0_8px_30px_rgb(15_23_42/0.04)] ring-1 ring-border" aria-label="Tổng quan tổ chức">
-        <div className="grid gap-px bg-slate-200/80 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="overflow-hidden rounded-2xl border border-border bg-card" aria-label="Tổng quan tổ chức">
+        <div className="grid gap-px bg-border sm:grid-cols-2 xl:grid-cols-4">
           <OrganizationMetric
             icon={UserCheck}
             label="Đang làm việc"
             value={canView ? formatNumber(activeEmployees) : '—'}
-            detail={canView ? `${formatNumber(totalEmployees)} hồ sơ · ${formatNumber(leftEmployees)} đã nghỉ` : 'Cần quyền xem nhân sự'}
+            detail={canView ? `Trên tổng ${formatNumber(totalEmployees)} hồ sơ` : 'Cần quyền xem nhân sự'}
             loading={canView && employeesQuery.isLoading}
           />
           <OrganizationMetric
             icon={Building2}
             label="Phòng ban"
             value={formatNumber(activeDepartments)}
-            detail={`${formatNumber(departments.length)} phòng ban · đang hoạt động`}
+            detail={`Trên tổng ${formatNumber(departments.length)}`}
             loading={departmentsQuery.isLoading}
           />
           <OrganizationMetric
             icon={Network}
             label="Team"
             value={formatNumber(activeTeams)}
-            detail={`${formatNumber(teams.length)} team · đang hoạt động`}
+            detail={`Trên tổng ${formatNumber(teams.length)}`}
             loading={teamsQuery.isLoading}
           />
           {canManageUsers ? (
@@ -286,12 +287,12 @@ export function EmployeesPage() {
       ) : null}
 
       {canManage ? (
-        <nav className="flex w-fit max-w-full gap-1 overflow-x-auto rounded-xl bg-slate-200/65 p-1" aria-label="Nội dung quản lý nhân sự">
+        <nav className="flex w-fit max-w-full gap-1 overflow-x-auto rounded-xl bg-muted p-1" aria-label="Nội dung quản lý nhân sự">
           <button
             type="button"
             onClick={() => setActiveView('structure')}
             aria-current={activeView === 'structure' ? 'page' : undefined}
-            className={`flex h-9 items-center gap-2 whitespace-nowrap rounded-lg px-3.5 text-sm font-semibold transition-all ${activeView === 'structure' ? 'bg-white text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+            className={`flex h-9 items-center gap-2 whitespace-nowrap rounded-lg px-3.5 text-sm font-semibold transition-colors ${activeView === 'structure' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
           >
             <Network className="size-4" /> Cơ cấu tổ chức
           </button>
@@ -299,7 +300,7 @@ export function EmployeesPage() {
             type="button"
             onClick={() => setActiveView('groups')}
             aria-current={activeView === 'groups' ? 'page' : undefined}
-            className={`flex h-9 items-center gap-2 whitespace-nowrap rounded-lg px-3.5 text-sm font-semibold transition-all ${activeView === 'groups' ? 'bg-white text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+            className={`flex h-9 items-center gap-2 whitespace-nowrap rounded-lg px-3.5 text-sm font-semibold transition-colors ${activeView === 'groups' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
           >
             <UsersRound className="size-4" /> Nhóm nghiệp vụ
           </button>
@@ -348,20 +349,20 @@ function OrganizationMetric({
   attention?: boolean
 }) {
   const content = (
-    <div className="flex min-h-24 items-center gap-3.5 bg-white px-5 py-4 text-left transition-colors group-hover:bg-slate-50/80 sm:min-h-28 lg:px-6">
-      <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${attention ? 'bg-amber-50 text-amber-600 ring-1 ring-amber-200/70' : 'bg-[#eaf3fb] text-[#075aa8]'}`}>
-        <Icon className="size-5" aria-hidden="true" />
+    <div className="flex min-h-22 items-center gap-3 bg-card px-5 py-4 text-left transition-colors group-hover:bg-muted/40 sm:min-h-24 lg:px-6">
+      <span className={`grid size-8 shrink-0 place-items-center rounded-lg ${attention ? toneSurface.warning : toneSurface.info}`}>
+        <Icon className="size-4.5" aria-hidden="true" />
       </span>
       <div className="min-w-0">
-        <p className="text-xs font-medium text-slate-500">{label}</p>
-        {loading ? <Skeleton className="mt-2 h-7 w-16" /> : <strong className="mt-0.5 block text-2xl font-bold tracking-tight text-foreground tabular-nums">{value}</strong>}
-        <p className={`mt-1 truncate text-xs ${attention ? 'font-medium text-amber-600' : 'text-slate-500'}`}>{detail}</p>
+        <p className="text-xs font-medium text-muted-foreground">{label}</p>
+        {loading ? <Skeleton className="mt-2 h-7 w-16" /> : <strong className="mt-0.5 block text-xl font-bold tracking-tight text-foreground tabular-nums">{value}</strong>}
+        <p className={`mt-1 truncate text-xs ${attention ? 'font-medium text-[var(--warning-700)]' : 'text-muted-foreground'}`}>{detail}</p>
       </div>
     </div>
   )
 
   return onSelect ? (
-    <button type="button" className="group w-full bg-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary" onClick={onSelect}>
+    <button type="button" className="group w-full bg-card transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary" onClick={onSelect}>
       {content}
     </button>
   ) : content
@@ -424,7 +425,7 @@ function SyncOrganizationDialog() {
         </DialogHeader>
 
         <div className="grid gap-4">
-          <div className="rounded-xl border bg-muted/40 p-4">
+          <div className="rounded-xl border bg-muted/30 p-4">
             <p className="font-semibold text-foreground">Phạm vi đồng bộ</p>
             <p className="mt-1 text-sm leading-6 text-muted-foreground">
               Tất cả team, kể cả team chưa từng xuất hiện trong hệ thống lương. Một team gặp lỗi sẽ không làm dừng các team còn lại.
@@ -574,18 +575,13 @@ function OrganizationTab({
     : 'Cần quyền xem nhân sự'
 
   return (
-    <Card id={ORG_STRUCTURE_ID} className="scroll-mt-24 overflow-hidden py-0 shadow-[0_8px_30px_rgb(15_23_42/0.035)]">
+    <Card id={ORG_STRUCTURE_ID} className="scroll-mt-24 overflow-hidden py-0">
       <CardContent className="p-0">
         <div className="flex flex-col gap-5 border-b border-border p-4 sm:p-5 lg:p-6">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-            <div className="flex items-center gap-3">
-              <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-[#eaf3fb] text-[#075aa8]">
-                <Network className="size-5" aria-hidden="true" />
-              </span>
-              <div className="min-w-0">
-                <h2 className="text-lg font-bold tracking-tight">Cơ cấu tổ chức</h2>
-                <p className="mt-1 text-sm text-muted-foreground">{formatNumber(departments.length)} phòng ban <span className="mx-1 text-slate-300">/</span> {formatNumber(teams.length)} team <span className="mx-1 text-slate-300">/</span> {summary}</p>
-              </div>
+            <div className="min-w-0">
+              <h2 className="text-lg font-bold tracking-tight">Cơ cấu tổ chức</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Mở phòng ban để xem team và thành viên · {summary}</p>
             </div>
             {canManage ? (
               <div className="flex flex-wrap items-center gap-2">
@@ -596,12 +592,12 @@ function OrganizationTab({
           </div>
 
           {canViewEmployees ? (
-            <div className="flex flex-col gap-3 rounded-xl bg-slate-50 p-3 ring-1 ring-border/80">
+            <div className="flex flex-col gap-3">
               <div className={`grid gap-2 sm:grid-cols-2 ${canManageUsers ? 'xl:grid-cols-[minmax(17rem,1.5fr)_11rem_13rem_13rem]' : 'xl:grid-cols-[minmax(17rem,1.5fr)_11rem_13rem]'}`}>
                 <div className="relative">
                   <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
                   <Input
-                    className="w-full min-w-0 bg-white pr-9 pl-9 shadow-none"
+                    className="w-full min-w-0 bg-card pr-9 pl-9 shadow-none"
                     placeholder="Tìm tên, mã nhân viên hoặc chức danh…"
                     aria-label="Tìm nhân sự"
                     value={search}
@@ -620,8 +616,8 @@ function OrganizationTab({
                 </div>
 
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-full bg-white shadow-none" aria-label="Lọc theo trạng thái làm việc">
-                    <SlidersHorizontal className="size-3.5 text-primary" aria-hidden="true" />
+                  <SelectTrigger className="w-full bg-card shadow-none" aria-label="Lọc theo trạng thái làm việc">
+                    <SlidersHorizontal className="size-3.5 text-muted-foreground" aria-hidden="true" />
                     <SelectValue placeholder="Trạng thái" />
                   </SelectTrigger>
                   <SelectContent>
@@ -635,8 +631,8 @@ function OrganizationTab({
                 </Select>
 
                 <Select value={departmentFilter} onValueChange={changeDepartmentFilter}>
-                  <SelectTrigger className="w-full bg-white shadow-none" aria-label="Lọc theo phòng ban">
-                    <Building2 className="size-3.5 text-primary" aria-hidden="true" />
+                  <SelectTrigger className="w-full bg-card shadow-none" aria-label="Lọc theo phòng ban">
+                    <Building2 className="size-3.5 text-muted-foreground" aria-hidden="true" />
                     <SelectValue placeholder="Phòng ban" />
                   </SelectTrigger>
                   <SelectContent>
@@ -651,8 +647,8 @@ function OrganizationTab({
 
                 {canManageUsers ? (
                   <Select value={accountFilter} onValueChange={(value) => onAccountFilterChange(value as AccountFilter)}>
-                    <SelectTrigger className="w-full bg-white shadow-none" aria-label="Lọc theo tài khoản đăng nhập">
-                      <KeyRound className="size-3.5 text-primary" aria-hidden="true" />
+                    <SelectTrigger className="w-full bg-card shadow-none" aria-label="Lọc theo tài khoản đăng nhập">
+                      <KeyRound className="size-3.5 text-muted-foreground" aria-hidden="true" />
                       <SelectValue placeholder="Tài khoản" />
                     </SelectTrigger>
                     <SelectContent>
@@ -667,7 +663,7 @@ function OrganizationTab({
               {isFiltering ? (
                 <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3 text-xs text-muted-foreground">
                   <span className="flex items-center gap-2">
-                    <span className="grid size-5 place-items-center rounded-md bg-primary text-[10px] font-bold text-white">{activeFilterCount}</span>
+                    <span className="grid size-5 place-items-center rounded-md bg-primary text-[10px] font-bold text-primary-foreground">{activeFilterCount}</span>
                     <span><strong className="text-foreground">{formatNumber(filteredEmployees.length)}</strong> nhân sự phù hợp{showFlatResults ? ' · hiển thị dạng danh sách' : ''}</span>
                   </span>
                   <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={clearFilters}>
@@ -715,7 +711,6 @@ function OrganizationTab({
                 orphanUsers={orphanUsers}
                 teamOptions={teams}
                 employees={employees}
-                isFiltering
                 heading="Kết quả tìm kiếm"
                 subheading={`${formatNumber(filteredEmployees.length)} nhân sự khớp bộ lọc, gộp từ mọi phòng ban và team`}
               />
@@ -729,7 +724,7 @@ function OrganizationTab({
             action={<Button variant="outline" onClick={clearFilters}><X className="size-4" />Xoá bộ lọc</Button>}
           />
         ) : (
-          <div className="space-y-3 bg-[#f7f9fc] p-3 sm:p-4">
+          <div className="space-y-3 bg-muted/30 p-3 sm:p-4">
             {visibleDepartments.map(({ department, visibleTeams }) => (
               <DepartmentSection
                 key={department.id}
@@ -790,20 +785,17 @@ function EmployeeGroupsCard({
   const groups = groupsQuery.data ?? []
 
   return (
-    <Card className="overflow-hidden py-0 shadow-[0_8px_30px_rgb(15_23_42/0.035)]">
+    <Card className="overflow-hidden py-0">
       <CardContent className="p-0">
         <div className="flex flex-col gap-4 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5 lg:p-6">
-          <div className="flex items-center gap-3">
-            <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-[#eaf3fb] text-[#075aa8]"><UsersRound className="size-5" aria-hidden="true" /></span>
-            <div>
-              <h2 className="text-lg font-bold tracking-tight">Nhóm nghiệp vụ</h2>
-              <p className="mt-1 text-sm leading-5 text-muted-foreground">
-                Quy định cách tự động gán KPI khi mở kỳ lương theo phòng ban và chức danh.
-              </p>
-            </div>
+          <div className="min-w-0">
+            <h2 className="text-lg font-bold tracking-tight">Nhóm nghiệp vụ</h2>
+            <p className="mt-1 text-sm leading-5 text-muted-foreground">
+              Quy định cách tự động gán KPI khi mở kỳ lương theo phòng ban và chức danh.
+            </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-semibold text-muted-foreground">{formatNumber(groups.length)} nhóm</span>
+            <span className="rounded-lg bg-muted px-2.5 py-1.5 text-xs font-semibold text-muted-foreground">{formatNumber(groups.length)} nhóm</span>
             {canManage && <CreateEmployeeGroupDialog departments={departments} />}
           </div>
         </div>
@@ -820,22 +812,22 @@ function EmployeeGroupsCard({
             action={canManage ? <CreateEmployeeGroupDialog departments={departments} /> : undefined}
           />
         ) : (
-          <ul className="divide-y divide-border/70">
+          <ul className="divide-y divide-border">
             {groups.map((group) => (
-              <li key={group.id} className="flex flex-col gap-3 p-4 transition-colors hover:bg-[#f9fbfd] sm:flex-row sm:items-center sm:justify-between sm:px-5 lg:px-6">
+              <li key={group.id} className="flex flex-col gap-3 p-4 transition-colors hover:bg-muted/40 sm:flex-row sm:items-center sm:justify-between sm:px-5 lg:px-6">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-semibold text-foreground">{group.name}</span>
                     <StatusBadge tone={group.status === 'ACTIVE' ? 'success' : 'muted'}>
                       {group.status === 'ACTIVE' ? 'Đang dùng' : 'Ngừng dùng'}
                     </StatusBadge>
-                    <span className="rounded-md bg-[#eaf3fb] px-2 py-1 text-xs font-medium text-[#075aa8]">
+                    <span className="rounded-md bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
                       {group.department ? group.department.name : 'Dùng chung mọi phòng ban'}
                     </span>
                   </div>
                   {group.description ? <p className="mt-1 text-sm text-muted-foreground">{group.description}</p> : null}
                   <p className="mt-1.5 text-xs leading-5 text-muted-foreground">
-                    <code className="mr-1 font-semibold text-slate-500">{group.code}</code> · {formatNumber(group._count.employees)} nhân sự · {formatNumber(group._count.kpiGroups)} nhóm KPI
+                    <code className="mr-1 font-semibold text-muted-foreground">{group.code}</code> · {formatNumber(group._count.employees)} nhân sự · {formatNumber(group._count.kpiGroups)} nhóm KPI
                     {group.defaultRole ? ` · Vai trò mặc định: ${group.defaultRole.name}` : ' · Không gán vai trò mặc định'}
                     {group.jobTitleKeywords.length > 0 ? ` · Từ khóa chức danh: ${group.jobTitleKeywords.join(', ')}` : ''}
                   </p>
@@ -1124,7 +1116,7 @@ function DeleteEmployeeGroupButton({ group }: { group: EmployeeGroup }) {
     <Button
       variant="outline"
       size="sm"
-      className="text-[var(--danger-600)] hover:text-[var(--danger-600)]"
+      className="text-[var(--danger-700)] hover:text-[var(--danger-700)]"
       onClick={() => mutation.mutate()}
       disabled={mutation.isPending}
     >
@@ -1177,7 +1169,7 @@ function EmployeeGroupsField({
       ) : null}
       <div className="flex flex-wrap gap-2">
         {availableGroups.map((group) => (
-          <label key={group.id} className="flex cursor-pointer items-center gap-2 rounded-lg bg-card px-3 py-2 text-sm font-medium shadow-sm ring-1 ring-border">
+          <label key={group.id} className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium">
             <input
               type="checkbox"
               className="size-4 accent-primary"
@@ -1233,17 +1225,17 @@ function DepartmentSection({
   const matchedCount = teams.reduce((total, team) => total + (membersByTeam.get(team.id) ?? []).length, 0)
 
   return (
-    <section className="overflow-hidden rounded-xl bg-card ring-1 ring-border transition-shadow hover:shadow-[0_6px_20px_rgb(15_23_42/0.04)]">
-      <div className={`flex items-stretch gap-2 p-2 sm:items-center sm:gap-3 sm:p-3 ${expanded ? 'border-b border-border bg-slate-50/70' : ''}`}>
+    <section className="overflow-hidden rounded-xl border border-border bg-card">
+      <div className={`flex items-stretch gap-2 p-2 sm:items-center sm:gap-3 sm:p-3 ${expanded ? 'border-b border-border bg-muted/40' : ''}`}>
         <button
           type="button"
-          className="flex min-w-0 flex-1 cursor-pointer items-center justify-between gap-3 rounded-lg p-2 text-left transition-colors hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:px-3"
+          className="flex min-w-0 flex-1 cursor-pointer items-center justify-between gap-3 rounded-lg p-2 text-left transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:px-3"
           aria-expanded={expanded}
           aria-controls={panelId}
           onClick={onToggle}
         >
           <span className="flex min-w-0 items-center gap-3">
-            <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-[#edf4fb] text-[#075aa8]"><Building2 className="size-[18px]" aria-hidden="true" /></span>
+            <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary"><Building2 className="size-[18px]" aria-hidden="true" /></span>
             <span className="min-w-0">
               <span className="flex flex-wrap items-center gap-2">
                 <span className="truncate text-[15px] font-bold text-foreground">{department.name}</span>
@@ -1276,7 +1268,7 @@ function DepartmentSection({
               action={canManage ? <CreateTeamDialog departments={departments} /> : undefined}
             />
           ) : (
-            <div className="divide-y divide-border/70 px-2 pb-2 sm:px-3 sm:pb-3">
+            <div className="divide-y divide-border px-2 pb-2 sm:px-3 sm:pb-3">
               {teams.map((team) => (
                 <TeamListItem
                   key={team.id}
@@ -1339,17 +1331,17 @@ function TeamListItem({
   const panelId = `team-members-${team.id}`
 
   return (
-    <article className={`overflow-hidden ${expanded ? 'rounded-lg bg-[#f8fafc]' : ''}`}>
+    <article className="overflow-hidden">
       <div className="flex items-stretch gap-2 py-2 sm:items-center sm:gap-3">
         <button
           type="button"
-          className="flex min-w-0 flex-1 cursor-pointer flex-col gap-3 rounded-lg px-3 py-3 text-left transition-colors hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:flex-row sm:items-center sm:justify-between"
+          className="flex min-w-0 flex-1 cursor-pointer flex-col gap-3 rounded-lg px-3 py-3 text-left transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:flex-row sm:items-center sm:justify-between"
           aria-expanded={expanded}
           aria-controls={panelId}
           onClick={onToggle}
         >
           <span className="flex min-w-0 items-center gap-3">
-            <span className="grid size-9 shrink-0 place-items-center rounded-lg border border-border bg-white text-slate-500"><FolderTree className="size-4" aria-hidden="true" /></span>
+            <span className="grid size-9 shrink-0 place-items-center rounded-lg border border-border bg-card text-muted-foreground"><FolderTree className="size-4" aria-hidden="true" /></span>
             <span className="min-w-0">
               <span className="flex flex-wrap items-center gap-2">
                 <span className="truncate font-semibold text-foreground">{team.name}</span>
@@ -1360,8 +1352,8 @@ function TeamListItem({
           </span>
           <span className="flex flex-wrap items-center gap-3 sm:justify-end">
             <span className="text-xs text-muted-foreground"><strong className="font-semibold text-foreground">{canViewEmployees && !employeesLoading ? (isFiltering ? `${formatNumber(members.length)}/${formatNumber(totalMemberCount)}` : formatNumber(totalMemberCount)) : '—'}</strong> thành viên</span>
-            <span className="hidden h-4 w-px bg-slate-200 sm:block" aria-hidden="true" />
-            <span className="text-xs text-muted-foreground"><strong className="font-semibold text-[var(--success-600)]">{canViewEmployees && !employeesLoading ? formatNumber(activeMembers) : '—'}</strong> đang làm việc</span>
+            <span className="hidden h-4 w-px bg-border sm:block" aria-hidden="true" />
+            <span className="text-xs text-muted-foreground"><strong className="font-semibold text-[var(--success-700)]">{canViewEmployees && !employeesLoading ? formatNumber(activeMembers) : '—'}</strong> đang làm việc</span>
             <ChevronDown className={`size-4 text-muted-foreground transition-transform ${expanded ? 'rotate-180' : ''}`} aria-hidden="true" />
           </span>
         </button>
@@ -1375,7 +1367,7 @@ function TeamListItem({
       </div>
 
       {expanded ? (
-        <div id={panelId} className="border-t border-border bg-white px-3 py-4 sm:px-5">
+        <div id={panelId} className="border-t border-border bg-muted/30 px-3 py-4 sm:px-5">
           {!canViewEmployees ? (
             <EmptyState
               size="sm"
@@ -1402,7 +1394,6 @@ function TeamListItem({
               orphanUsers={orphanUsers}
               teamOptions={teamOptions}
               employees={employees}
-              isFiltering={isFiltering}
             />
           )}
         </div>
@@ -1418,8 +1409,7 @@ function TeamMemberList({
   orphanUsers,
   teamOptions,
   employees,
-  isFiltering,
-  heading = 'Thành viên team',
+  heading,
   subheading,
 }: {
   members: Employee[]
@@ -1428,7 +1418,6 @@ function TeamMemberList({
   orphanUsers: UserSummary[]
   teamOptions: Team[]
   employees: Employee[]
-  isFiltering: boolean
   heading?: string
   subheading?: string
 }) {
@@ -1452,44 +1441,42 @@ function TeamMemberList({
 
   return (
     <div>
-      <div className="mb-3 flex items-center justify-between gap-3 px-0.5">
-        <div>
+      {heading ? (
+        <div className="mb-3 px-0.5">
           <p className="text-sm font-semibold text-foreground">{heading}</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {subheading ?? `${formatNumber(members.length)} nhân sự${isFiltering ? ' khớp tìm kiếm' : ' trong danh sách'}`}
-          </p>
+          {subheading ? <p className="mt-1 text-sm text-muted-foreground">{subheading}</p> : null}
         </div>
-      </div>
-      <div className={`hidden border-x border-t border-border bg-slate-50 px-4 py-2.5 text-[10px] font-bold tracking-[0.08em] text-slate-500 uppercase lg:grid ${canManageUsers ? 'lg:grid-cols-[minmax(15rem,1.35fr)_minmax(12rem,.8fr)_minmax(12rem,.9fr)_auto]' : 'lg:grid-cols-[minmax(15rem,1.35fr)_minmax(12rem,.8fr)_auto]'}`}>
+      ) : null}
+      <div className={`hidden rounded-t-xl border border-border bg-muted px-4 py-2.5 text-[10px] font-bold tracking-[0.08em] text-muted-foreground uppercase lg:grid ${canManageUsers ? 'lg:grid-cols-[minmax(15rem,1.35fr)_minmax(12rem,.8fr)_minmax(12rem,.9fr)_auto]' : 'lg:grid-cols-[minmax(15rem,1.35fr)_minmax(12rem,.8fr)_auto]'}`}>
         <span>Nhân sự & phân bổ</span>
         <span>Quản lý trực tiếp</span>
         {canManageUsers ? <span>Tài khoản</span> : null}
         <span className="text-right">Thao tác</span>
       </div>
-      <ul className="divide-y divide-border/70 overflow-hidden rounded-xl border border-border lg:rounded-t-none">
+      <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card lg:rounded-t-none lg:border-t-0">
         {members.map((member) => (
-          <li key={member.id} className={`grid gap-4 p-4 transition-colors hover:bg-[#f9fbfd] lg:items-center ${canManageUsers ? 'lg:grid-cols-[minmax(15rem,1.35fr)_minmax(12rem,.8fr)_minmax(12rem,.9fr)_auto]' : 'lg:grid-cols-[minmax(15rem,1.35fr)_minmax(12rem,.8fr)_auto]'}`}>
+          <li key={member.id} className={`grid gap-4 p-4 transition-colors hover:bg-muted/40 lg:items-center ${canManageUsers ? 'lg:grid-cols-[minmax(15rem,1.35fr)_minmax(12rem,.8fr)_minmax(12rem,.9fr)_auto]' : 'lg:grid-cols-[minmax(15rem,1.35fr)_minmax(12rem,.8fr)_auto]'}`}>
             <div className="flex min-w-0 items-center gap-3">
-              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#eaf3fb] text-xs font-bold text-[#075aa8] ring-1 ring-[#d9e9f7]">{initialsOf(member.fullName)}</span>
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-xs font-bold text-primary">{initialsOf(member.fullName)}</span>
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="truncate font-semibold text-foreground">{member.fullName}</p>
                   {teamLeaderIds.has(member.id) ? <StatusBadge>Team Leader</StatusBadge> : null}
                   <StatusBadge tone={EMP_STATUS_TONE[member.employmentStatus]}>{EMP_STATUS_LABEL[member.employmentStatus]}</StatusBadge>
                 </div>
-                <p className="mt-1 truncate text-xs text-muted-foreground"><code className="font-semibold text-slate-500">{member.employeeCode}</code> · {member.jobTitle}</p>
+                <p className="mt-1 truncate text-xs text-muted-foreground"><code className="font-semibold text-muted-foreground">{member.employeeCode}</code> · {member.jobTitle}</p>
                 <div className="mt-2 flex flex-wrap gap-1.5" aria-label="Team và tỷ trọng phân bổ">
                   {(member.teamMemberships ?? []).map((membership) => (
                     <span
                       key={`team-${membership.teamId}`}
-                      className="rounded-md bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-600"
+                      className="rounded-md bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground"
                     >
                       {membership.team.name}
                       {' · '}{membership.defaultSalaryWeightPercent}%{membership.isPrimary ? ' · chính' : ''}
                     </span>
                   ))}
                   {member.employeeGroups.map((group) => (
-                    <span key={group.id} className="rounded-md bg-[#edf6f1] px-2 py-1 text-[11px] font-medium text-[#27734d]">
+                    <span key={group.id} className="rounded-md bg-[var(--success-500)]/14 px-2 py-1 text-[11px] font-medium text-[var(--success-700)]">
                       {group.name}
                     </span>
                   ))}
@@ -1512,9 +1499,9 @@ function TeamMemberList({
             {canManageUsers ? (
               <div className="min-w-0">
                 {member.user ? (
-                  <span className="flex min-w-0 items-center gap-1.5 text-xs text-[var(--success-600)]"><Link2 className="size-3.5 shrink-0" aria-hidden="true" /><span className="truncate">{member.user.email}</span></span>
+                  <span className="flex min-w-0 items-center gap-1.5 text-xs text-[var(--success-700)]"><Link2 className="size-3.5 shrink-0" aria-hidden="true" /><span className="truncate">{member.user.email}</span></span>
                 ) : (
-                  <span className="flex items-center gap-1.5 text-xs font-medium text-[var(--warning-600)]"><Unlink className="size-3.5" aria-hidden="true" />Chưa có tài khoản</span>
+                  <span className="flex items-center gap-1.5 text-xs font-medium text-[var(--warning-700)]"><Unlink className="size-3.5" aria-hidden="true" />Chưa có tài khoản</span>
                 )}
               </div>
             ) : null}
@@ -1858,7 +1845,7 @@ function CreateEmployeeDialog({
           </div>
         </div>
 
-        <DialogFooter className="mx-0 mb-0 shrink-0 flex-row flex-wrap justify-end gap-2 bg-muted/60 px-5 py-4">
+        <DialogFooter className="mx-0 mb-0 shrink-0 flex-row flex-wrap justify-end gap-2 bg-muted px-5 py-4">
           <Button variant="outline" className="min-w-28" onClick={() => setOpen(false)}>
             Hủy
           </Button>
@@ -1975,7 +1962,7 @@ function TeamMembershipsDialog({
             </div>
             <div className="grid gap-2">
               {memberships.map((membership) => (
-                <div key={membership.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-muted/50 px-3 py-2">
+                <div key={membership.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-muted/40 px-3 py-2">
                   <button type="button" className="min-w-0 text-left" onClick={() => editMembership(membership)}>
                     <span className="block truncate text-sm font-semibold">
                       {membership.team.name}{membership.isPrimary ? ' · Team chính' : ''}
@@ -2155,7 +2142,7 @@ function EditEmployeeDialog({
           </div>
         </div>
 
-        <DialogFooter className="mx-0 mb-0 shrink-0 flex-row flex-wrap justify-end gap-2 bg-muted/60 px-5 py-4">
+        <DialogFooter className="mx-0 mb-0 shrink-0 flex-row flex-wrap justify-end gap-2 bg-muted px-5 py-4">
           <Button variant="outline" className="min-w-28" onClick={() => setOpen(false)}>
             Hủy
           </Button>
@@ -2277,7 +2264,7 @@ function LinkAccountDialog({ employee, orphanUsers }: { employee: Employee; orph
         {employee.user ? (
           <div className="grid gap-4">
             <div className="rounded-xl border bg-muted/40 p-3 text-sm">
-              <p className="flex items-center gap-1.5 font-semibold text-[var(--success-600)]">
+              <p className="flex items-center gap-1.5 font-semibold text-[var(--success-700)]">
                 <Link2 className="size-4" />
                 Đang gắn với tài khoản
               </p>

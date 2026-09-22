@@ -176,7 +176,7 @@ export function KpiOkrPage() {
   const pendingProposalsCount = (proposalsQuery.data ?? []).filter((p) => p.status === 'PENDING').length
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-4">
       <PageHeader
         eyebrow={`Theo dõi hiệu suất · ${accessLabel}`}
         title="KPI & OKR"
@@ -200,7 +200,7 @@ export function KpiOkrPage() {
         onTeamChanged={setSelectedProfileTeamId}
       /> : null}
       {activeTab ? <Tabs value={activeTab} onValueChange={changeTab} className="gap-0">
-        <TabsList variant="line" className="kpi-okr-tabs w-full max-w-full justify-start overflow-x-auto">
+        <TabsList variant="line" className="w-full max-w-full justify-start overflow-x-auto">
           {canViewKpi ? <TabsTrigger value="kpi">
             <Target className="size-4" />
             Nhóm KPI
@@ -380,16 +380,14 @@ function ProfileContext({
   }
 
   return (
-    <Card className="border-primary/15 bg-[linear-gradient(110deg,var(--secondary),var(--card)_48%)] py-0">
+    <Card className="py-0">
       <CardContent className="flex flex-col gap-4 p-4 lg:flex-row lg:items-center lg:justify-between lg:p-5">
         <div className="flex items-center gap-3">
-          <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-primary text-sm font-bold text-primary-foreground shadow-sm">
+          <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-sm font-bold text-primary">
             {initials}
           </span>
           <div className="min-w-0">
-            <p className="flex items-center gap-1.5 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-              <UsersRound className="size-3.5" aria-hidden="true" /> Hồ sơ đang xem
-            </p>
+            <p className="text-xs text-muted-foreground">Hồ sơ đang xem</p>
             {selectedEmployee ? (
               <p className="mt-0.5 text-sm font-semibold">
                 {selectedEmployee.fullName}{' '}
@@ -418,7 +416,7 @@ function ProfileContext({
             disabled={employeesQuery.isLoading || departments.length === 0}
           >
             <SelectTrigger className="w-full min-w-0">
-              <Building2 className="size-3.5 text-primary" />
+              <Building2 className="size-3.5 text-muted-foreground" />
               <SelectValue placeholder={departments.length === 0 ? 'Chưa có phòng ban' : 'Chọn phòng ban'} />
             </SelectTrigger>
             <SelectContent searchPlaceholder="Tìm phòng ban...">
@@ -433,7 +431,7 @@ function ProfileContext({
             disabled={employeesQuery.isLoading || departmentTeams.length === 0}
           >
             <SelectTrigger className="w-full min-w-0">
-              <UsersRound className="size-3.5 text-primary" />
+              <UsersRound className="size-3.5 text-muted-foreground" />
               <SelectValue placeholder={departmentTeams.length === 0 ? 'Chưa có team' : 'Chọn team'} />
             </SelectTrigger>
             <SelectContent searchPlaceholder="Tìm team...">
@@ -448,7 +446,7 @@ function ProfileContext({
             disabled={!effectiveTeamId || employeesQuery.isLoading || teamEmployees.length === 0}
           >
             <SelectTrigger className="w-full min-w-0">
-              <Filter className="size-3.5 text-primary" />
+              <Filter className="size-3.5 text-muted-foreground" />
               <SelectValue placeholder={!effectiveTeamId ? 'Chọn team trước' : teamEmployees.length === 0 ? 'Không có nhân sự' : 'Chọn nhân sự'} />
             </SelectTrigger>
             <SelectContent searchPlaceholder="Tìm nhân sự...">
@@ -466,7 +464,7 @@ function ProfileContext({
             disabled={periodsQuery.isLoading || periods.length === 0}
           >
             <SelectTrigger className="w-full min-w-0">
-              <CalendarDays className="size-3.5 text-primary" />
+              <CalendarDays className="size-3.5 text-muted-foreground" />
               <SelectValue placeholder={periods.length === 0 ? 'Chưa có kỳ lương' : 'Chọn kỳ lương'} />
             </SelectTrigger>
             <SelectContent>
@@ -617,14 +615,10 @@ function KpiGroupProgressCard({
     <Card className="overflow-hidden py-0">
       <CardContent className="p-0">
         <div className="flex flex-col gap-4 border-b p-5 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex min-w-0 items-start gap-3">
-            <span className={`mt-0.5 grid size-10 shrink-0 place-items-center rounded-xl ${toneSurface.info}`}>
-              <Target className="size-5" aria-hidden="true" />
-            </span>
-            <div className="min-w-0 flex-1">
+          <div className="min-w-0 flex-1">
+            <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <code className="rounded-md bg-muted px-2 py-1 text-xs font-semibold tracking-wide text-muted-foreground">{group.kpiGroupCode}</code>
-                <span className="text-xs text-muted-foreground">Nhóm KPI</span>
                 <StatusBadge tone="muted">{group.teamName}</StatusBadge>
               </div>
               <h2 className="mt-2 truncate text-lg font-bold tracking-tight text-foreground">{group.kpiGroupName}</h2>
@@ -891,14 +885,9 @@ function OkrTab({ periodId, employeeId, stage }: { periodId: string | null; empl
       <Card className="overflow-hidden py-0">
         <CardContent className="p-0">
           <div className="flex items-center justify-between gap-3 border-b p-5">
-            <div className="flex items-center gap-3">
-              <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${toneSurface.info}`}>
-                <ClipboardCheck className="size-5" aria-hidden="true" />
-              </span>
-              <div>
-                <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Mục tiêu cá nhân</p>
-                <h2 className="mt-1 text-base font-bold">OKR theo kỳ đã chọn</h2>
-              </div>
+            <div className="min-w-0">
+              <h2 className="text-base font-semibold tracking-tight text-foreground">OKR cá nhân</h2>
+              <p className="mt-1 text-xs text-muted-foreground">Mục tiêu của kỳ đang chọn</p>
             </div>
             <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">
               {formatNumber(okrs.length)} mục tiêu
@@ -982,25 +971,21 @@ function OkrProgressCard({
 
   return (
     <article className="grid gap-5 p-5 transition-colors hover:bg-muted/30 xl:grid-cols-[minmax(15rem,1fr)_minmax(19rem,1.1fr)_auto] xl:items-center">
-      <div className="flex min-w-0 items-start gap-3">
-        <span className={`mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg ${toneSurface.info}`}>
-          <Target className="size-4.5" aria-hidden="true" />
-        </span>
+      <div className="min-w-0">
         <div className="min-w-0">
-          <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">OKR cá nhân</p>
-          <h3 className="mt-1 truncate font-bold text-foreground">{okr.title}</h3>
+          <h3 className="truncate font-bold text-foreground">{okr.title}</h3>
           {okr.description ? <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{okr.description}</p> : null}
         </div>
       </div>
       <div className="grid grid-cols-2 gap-x-5 gap-y-3 sm:grid-cols-[auto_auto_minmax(9rem,1fr)] sm:items-end">
         <div>
-          <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Mục tiêu</p>
+          <p className="text-xs text-muted-foreground">Mục tiêu</p>
           <p className="mt-1 font-bold text-foreground tabular-nums">
             {formatNumber(okr.targetValue)} <span className="text-xs font-medium text-muted-foreground">{okr.unit ?? ''}</span>
           </p>
         </div>
         <div>
-          <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Thực tế</p>
+          <p className="text-xs text-muted-foreground">Thực tế</p>
           <p className="mt-1 font-bold text-foreground tabular-nums">
             {formatNumber(okr.actualValue)} <span className="text-xs font-medium text-muted-foreground">{okr.unit ?? ''}</span>
           </p>
@@ -1009,7 +994,7 @@ function OkrProgressCard({
           ) : null}
         </div>
         <div className="col-span-2 sm:col-span-1">
-          <div className="flex items-center justify-between gap-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+          <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
             <span>Tiến độ</span>
             <span className="text-foreground tabular-nums">{okr.progressPercent.toFixed(0)}%</span>
           </div>
@@ -1024,11 +1009,11 @@ function OkrProgressCard({
       <div className="flex flex-col gap-3 xl:items-end">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 xl:justify-end">
           <span>
-            <span className="block text-xs font-semibold tracking-wide text-muted-foreground uppercase">Mức thưởng</span>
+            <span className="block text-xs text-muted-foreground">Mức thưởng</span>
             <span className="mt-1 block text-sm font-bold text-foreground tabular-nums">{formatMoney(okr.rewardAmount)}</span>
           </span>
           <span>
-            <span className="block text-xs font-semibold tracking-wide text-muted-foreground uppercase">Hạn</span>
+            <span className="block text-xs text-muted-foreground">Hạn</span>
             <span className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
               <CalendarDays className="size-3.5" aria-hidden="true" />
               {okr.deadline ? formatDate(okr.deadline) : 'Không hạn'}
@@ -1105,14 +1090,9 @@ function ProposalTab({ periodId }: { periodId: string | null }) {
       <CardContent className="p-0">
         <div className="flex flex-col gap-4 border-b p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-3">
-              <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${toneSurface.warning}`}>
-                <UserRoundCheck className="size-5" aria-hidden="true" />
-              </span>
-              <div>
-                <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Hàng chờ phê duyệt</p>
-                <h2 className="mt-1 text-base font-bold">Đề xuất KPI & OKR</h2>
-              </div>
+            <div className="min-w-0">
+              <h2 className="text-base font-semibold tracking-tight text-foreground">Đề xuất KPI & OKR</h2>
+              <p className="mt-1 text-xs text-muted-foreground">Hàng chờ phê duyệt của bạn</p>
             </div>
             <div className="flex items-center gap-3">
               <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">
@@ -1223,13 +1203,13 @@ function ProposalCard({
       </div>
       <div className="grid gap-3 sm:grid-cols-[auto_1fr] sm:items-start">
         <div>
-          <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Mục tiêu đề xuất</p>
+          <p className="text-xs text-muted-foreground">Mục tiêu đề xuất</p>
           <p className="mt-1 font-bold text-foreground tabular-nums">
             {formatNumber(proposal.proposedTargetValue)} <span className="text-xs font-medium text-muted-foreground">{proposal.proposedUnit ?? ''}</span>
           </p>
         </div>
         <div>
-          <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Lý do</p>
+          <p className="text-xs text-muted-foreground">Lý do</p>
           <p className="mt-1 text-sm leading-5 text-muted-foreground">{proposal.reason}</p>
         </div>
       </div>
@@ -1334,7 +1314,7 @@ function AssignKpiDialog({ periodId, employeeId, teamId }: { periodId: string | 
                 const isAssigned = assignedByGroupId.has(group.id)
                 const isPending = toggleMutation.isPending && pendingGroupId === group.id
                 return (
-                  <label key={group.id} className="flex cursor-pointer items-center justify-between gap-3 rounded-lg bg-card px-3 py-2.5 shadow-sm ring-1 ring-border transition-colors hover:bg-secondary/40">
+                  <label key={group.id} className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-border bg-card px-3 py-2.5 transition-colors hover:bg-muted/40">
                     <span className="flex items-center gap-2">
                       <input
                         type="checkbox"
@@ -1354,7 +1334,7 @@ function AssignKpiDialog({ periodId, employeeId, teamId }: { periodId: string | 
               ) : null}
             </div>
           )}
-          {rowError ? <p className="text-sm text-[var(--danger-600)]">{rowError}</p> : null}
+          {rowError ? <p className="text-sm text-[var(--danger-700)]">{rowError}</p> : null}
         </div>
         <DialogFooter>
           <DialogClose asChild>
@@ -1412,7 +1392,7 @@ function ManualActualDialog({
         <div className="grid gap-4">
           <div className="grid gap-1.5"><Label htmlFor={`manual-actual-${item.actualId}`}>Thực đạt ({item.kpiItemUnit})</Label><Input id={`manual-actual-${item.actualId}`} type="number" min="0" value={actualValue} onChange={(event) => setActualValue(event.target.value)} /></div>
           <div className="grid gap-1.5"><Label htmlFor={`manual-note-${item.actualId}`}>Ghi chú</Label><Textarea id={`manual-note-${item.actualId}`} value={note} onChange={(event) => setNote(event.target.value)} /></div>
-          {formError ? <p className="text-sm text-[var(--danger-600)]">{formError}</p> : null}
+          {formError ? <p className="text-sm text-[var(--danger-700)]">{formError}</p> : null}
         </div>
         <DialogFooter><DialogClose asChild><Button variant="outline">Hủy</Button></DialogClose><Button onClick={submit} disabled={mutation.isPending}>{mutation.isPending ? <Loader2 className="size-4 animate-spin" /> : null}Lưu giá trị nhập tay</Button></DialogFooter>
       </DialogContent>
@@ -1498,7 +1478,7 @@ function UpdateActualDialog({
               onChange={(event) => setSelfAssessment(event.target.value)}
             />
           </div>
-          {formError ? <p className="text-sm text-[var(--danger-600)]">{formError}</p> : null}
+          {formError ? <p className="text-sm text-[var(--danger-700)]">{formError}</p> : null}
         </div>
         <DialogFooter>
           <DialogClose asChild>
@@ -1578,7 +1558,7 @@ function LeaderRejectDialog({
             <Label htmlFor="reject-reason">Lý do từ chối</Label>
             <Textarea id="reject-reason" value={reason} onChange={(event) => setReason(event.target.value)} />
           </div>
-          {formError ? <p className="text-sm text-[var(--danger-600)]">{formError}</p> : null}
+          {formError ? <p className="text-sm text-[var(--danger-700)]">{formError}</p> : null}
         </div>
         <DialogFooter>
           <DialogClose asChild>
@@ -1673,10 +1653,10 @@ function OverrideActualDialog({
             />
           </div>
           <div className="grid gap-1.5">
-            <Label htmlFor="override-reason">Lý do điều chỉnh <span className="text-[var(--danger-600)]">*</span></Label>
+            <Label htmlFor="override-reason">Lý do điều chỉnh <span className="text-[var(--danger-700)]">*</span></Label>
             <Textarea id="override-reason" value={reason} onChange={(event) => setReason(event.target.value)} />
           </div>
-          {formError ? <p className="text-sm text-[var(--danger-600)]">{formError}</p> : null}
+          {formError ? <p className="text-sm text-[var(--danger-700)]">{formError}</p> : null}
         </div>
         <DialogFooter>
           <DialogClose asChild>
@@ -1803,7 +1783,7 @@ function CreateOkrDialog({ periodId, employeeId }: { periodId: string | null; em
               <Input id="okr-deadline" type="date" value={deadline} onChange={(event) => setDeadline(event.target.value)} />
             </div>
           </div>
-          {formError ? <p className="text-sm text-[var(--danger-600)]">{formError}</p> : null}
+          {formError ? <p className="text-sm text-[var(--danger-700)]">{formError}</p> : null}
         </div>
         <DialogFooter>
           <DialogClose asChild>
@@ -1880,7 +1860,7 @@ function UpdateOkrDialog({ okr, periodId, employeeId }: { okr: EmployeeOkr; peri
             <Label htmlFor="okr-assessment">Tự đánh giá (không bắt buộc)</Label>
             <Textarea id="okr-assessment" value={selfAssessment} onChange={(event) => setSelfAssessment(event.target.value)} />
           </div>
-          {formError ? <p className="text-sm text-[var(--danger-600)]">{formError}</p> : null}
+          {formError ? <p className="text-sm text-[var(--danger-700)]">{formError}</p> : null}
         </div>
         <DialogFooter>
           <DialogClose asChild>
@@ -1917,7 +1897,7 @@ function DeleteOkrDialog({ okr, periodId, employeeId }: { okr: EmployeeOkr; peri
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="text-[var(--danger-600)] hover:text-[var(--danger-600)]">
+        <Button variant="outline" size="sm" className="text-[var(--danger-700)] hover:text-[var(--danger-700)]">
           Xóa
         </Button>
       </DialogTrigger>
@@ -1997,10 +1977,10 @@ function OverrideOkrActualDialog({ okr, periodId, employeeId }: { okr: EmployeeO
             <Input id={`okr-override-value-${okr.id}`} type="number" min="0" step="any" value={value} onChange={(event) => { setValue(event.target.value); setFormError(null) }} />
           </div>
           <div className="grid gap-1.5">
-            <Label htmlFor={`okr-override-reason-${okr.id}`}>Lý do điều chỉnh <span className="text-[var(--danger-600)]">*</span></Label>
+            <Label htmlFor={`okr-override-reason-${okr.id}`}>Lý do điều chỉnh <span className="text-[var(--danger-700)]">*</span></Label>
             <Textarea id={`okr-override-reason-${okr.id}`} maxLength={1000} value={reason} onChange={(event) => { setReason(event.target.value); setFormError(null) }} />
           </div>
-          {formError ? <p role="alert" className="text-sm text-[var(--danger-600)]">{formError}</p> : null}
+          {formError ? <p role="alert" className="text-sm text-[var(--danger-700)]">{formError}</p> : null}
         </div>
         <DialogFooter>
           <DialogClose asChild><Button variant="outline" disabled={mutation.isPending}>Hủy</Button></DialogClose>
@@ -2061,7 +2041,7 @@ function LeaderRejectOkrDialog({ okr, periodId, employeeId }: { okr: EmployeeOkr
             <Label htmlFor="okr-reject-reason">Lý do từ chối</Label>
             <Textarea id="okr-reject-reason" value={reason} onChange={(event) => setReason(event.target.value)} />
           </div>
-          {formError ? <p className="text-sm text-[var(--danger-600)]">{formError}</p> : null}
+          {formError ? <p className="text-sm text-[var(--danger-700)]">{formError}</p> : null}
         </div>
         <DialogFooter>
           <DialogClose asChild>
@@ -2235,7 +2215,7 @@ function CreateProposalDialog({ periodId }: { periodId: string | null }) {
             <Label htmlFor="proposal-reason">Lý do đề xuất</Label>
             <Textarea id="proposal-reason" value={reason} onChange={(event) => setReason(event.target.value)} />
           </div>
-          {formError ? <p className="text-sm text-[var(--danger-600)]">{formError}</p> : null}
+          {formError ? <p className="text-sm text-[var(--danger-700)]">{formError}</p> : null}
         </div>
         <DialogFooter>
           <DialogClose asChild>
@@ -2301,7 +2281,7 @@ function RejectProposalDialog({ proposalId }: { proposalId: string }) {
             <Label htmlFor="proposal-reject-reason">Lý do từ chối</Label>
             <Textarea id="proposal-reject-reason" value={reason} onChange={(event) => setReason(event.target.value)} />
           </div>
-          {formError ? <p className="text-sm text-[var(--danger-600)]">{formError}</p> : null}
+          {formError ? <p className="text-sm text-[var(--danger-700)]">{formError}</p> : null}
         </div>
         <DialogFooter>
           <DialogClose asChild>
@@ -2375,14 +2355,9 @@ function KpiConfigTab() {
         <CardContent className="p-0">
           <div className="flex flex-col gap-4 border-b p-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-3">
-                <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${toneSurface.info}`}>
-                  <Settings2 className="size-5" aria-hidden="true" />
-                </span>
-                <div>
-                  <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Đầu mối cấu hình</p>
-                  <h2 className="mt-1 text-base font-bold">Danh sách nhóm KPI</h2>
-                </div>
+              <div className="min-w-0">
+                <h2 className="text-base font-semibold tracking-tight text-foreground">Danh sách nhóm KPI</h2>
+                <p className="mt-1 text-xs text-muted-foreground">Chọn một nhóm để xem và sửa đầu mục</p>
               </div>
               <div className="flex items-center gap-3">
                 <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">
@@ -2442,16 +2417,13 @@ function KpiConfigTab() {
                     key={group.id}
                     className={`flex flex-col gap-3 p-5 transition-colors sm:flex-row sm:items-center sm:justify-between ${isActiveGroup ? 'bg-primary/5' : 'hover:bg-muted/40'}`}
                   >
-                    <div className="flex min-w-0 items-center gap-3">
-                      <span className={`grid size-9 shrink-0 place-items-center rounded-lg ${toneSurface.info}`}>
-                        <Target className="size-4.5" aria-hidden="true" />
-                      </span>
+                    <div className="min-w-0 flex-1">
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <code className="rounded-md bg-muted px-2 py-1 text-xs font-semibold tracking-wide text-muted-foreground">{group.code}</code>
                           <StatusBadge tone={group.isActive ? 'success' : 'muted'}>{group.isActive ? 'Đang hoạt động' : 'Đã tắt'}</StatusBadge>
                           {group.applicableEmployeeGroups.map((employeeGroup) => (
-                            <span key={employeeGroup.id} className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">
+                            <span key={employeeGroup.id} className="rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">
                               {employeeGroup.name}
                             </span>
                           ))}
@@ -2553,12 +2525,10 @@ function KpiGroupDetailCard({
     <Card className="overflow-hidden py-0">
       <CardContent className="p-0">
         <div className="flex flex-col gap-4 border-b p-5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex min-w-0 items-start gap-3">
-            <span className={`mt-0.5 grid size-10 shrink-0 place-items-center rounded-xl ${toneSurface.info}`}><Target className="size-5" aria-hidden="true" /></span>
+          <div className="min-w-0 flex-1">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <code className="rounded-md bg-muted px-2 py-1 text-xs font-semibold tracking-wide text-muted-foreground">{group.code}</code>
-                <span className="text-xs text-muted-foreground">Nhóm KPI</span>
               </div>
               <h2 className="mt-2 truncate text-lg font-bold tracking-tight">{group.name}</h2>
               {group.description ? <p className="mt-1 text-sm text-muted-foreground">{group.description}</p> : null}
@@ -2568,7 +2538,7 @@ function KpiGroupDetailCard({
               </StatusBadge>
               <span className="text-xs text-muted-foreground">{DATA_SOURCE_LABEL[group.dataSource]}</span>
               {group.applicableEmployeeGroups.map((employeeGroup) => (
-                <span key={employeeGroup.id} className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">
+                <span key={employeeGroup.id} className="rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">
                   Tự gán: {employeeGroup.name}
                 </span>
               ))}
@@ -2599,7 +2569,7 @@ function KpiGroupDetailCard({
             disabled={periodsLoading || periods.length === 0}
           >
             <SelectTrigger className="w-full bg-card sm:w-64">
-              <CalendarDays className="size-3.5 text-primary" />
+              <CalendarDays className="size-3.5 text-muted-foreground" />
               <SelectValue placeholder={periods.length === 0 ? 'Chưa có kỳ lương' : 'Chọn kỳ lương'} />
             </SelectTrigger>
             <SelectContent>
@@ -2612,7 +2582,7 @@ function KpiGroupDetailCard({
           </Select>
         </div>
         <div className="flex flex-col gap-3 border-t p-5 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Đầu mục KPI</p>
+          <p className="text-sm font-semibold text-foreground">Đầu mục KPI</p>
           {canConfigure ? <CreateKpiItemDialog groupId={group.id} /> : null}
         </div>
         {group.items.length === 0 ? (
@@ -2769,7 +2739,7 @@ function CreateKpiGroupDialog({ onCreated, allowedTeamIds }: { onCreated: (id: s
             onChange={setApplicableEmployeeGroupIds}
             teamIds={teamIds}
           />
-          {formError ? <p className="text-sm text-[var(--danger-600)]">{formError}</p> : null}
+          {formError ? <p className="text-sm text-[var(--danger-700)]">{formError}</p> : null}
         </DialogBody>
         <DialogFooter>
           <DialogClose asChild>
@@ -2881,7 +2851,7 @@ function EditKpiGroupDialog({ group, allowedTeamIds }: { group: KpiGroup; allowe
             onChange={setApplicableEmployeeGroupIds}
             teamIds={teamIds}
           />
-          {formError ? <p className="text-sm text-[var(--danger-600)]">{formError}</p> : null}
+          {formError ? <p className="text-sm text-[var(--danger-700)]">{formError}</p> : null}
         </DialogBody>
         <DialogFooter>
           <DialogClose asChild>
@@ -2922,7 +2892,7 @@ function DeleteKpiGroupDialog({ group, onDeleted }: { group: KpiGroupDetail; onD
         <Button
           variant="outline"
           size="sm"
-          className="text-[var(--danger-600)] hover:text-[var(--danger-600)]"
+          className="text-[var(--danger-700)] hover:text-[var(--danger-700)]"
         >
           Xoá nhóm
         </Button>
@@ -3012,7 +2982,7 @@ function EmployeeGroupSelector({
       </p>
       {groupsQuery.isLoading ? <p className="text-sm text-muted-foreground">Đang tải nhóm nghiệp vụ…</p> : null}
       {groupsQuery.isError ? (
-        <p className="text-sm text-[var(--danger-600)]">Không tải được danh mục nhóm nghiệp vụ.</p>
+        <p className="text-sm text-[var(--danger-700)]">Không tải được danh mục nhóm nghiệp vụ.</p>
       ) : null}
       {!groupsQuery.isLoading && teamIds.length === 0 ? (
         <p className="text-sm text-muted-foreground">Chọn team áp dụng trước để biết nhóm nghiệp vụ nào dùng được.</p>
@@ -3024,7 +2994,7 @@ function EmployeeGroupSelector({
       ) : null}
       <div className="flex max-h-36 flex-wrap gap-2 overflow-y-auto overscroll-contain">
         {availableGroups.map((group) => (
-          <label key={group.id} className="flex cursor-pointer items-center gap-2 rounded-lg bg-card px-3 py-2 text-sm font-medium shadow-sm ring-1 ring-border">
+          <label key={group.id} className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium">
             <input
               type="checkbox"
               className="size-4 accent-primary"
@@ -3113,13 +3083,13 @@ function KpiTeamSelector({
 
   return (
     <fieldset className="grid gap-2 rounded-xl border border-primary/15 bg-primary/5 p-3">
-      <legend className="px-1 text-sm font-semibold">Team áp dụng <span className="text-[var(--danger-600)]">*</span></legend>
+      <legend className="px-1 text-sm font-semibold">Team áp dụng <span className="text-[var(--danger-700)]">*</span></legend>
       <p className="text-xs leading-5 text-muted-foreground">
         Chọn phòng ban trước, rồi tick các team trong phòng ban đó. Có thể chọn team ở nhiều phòng ban —
         đổi phòng ban không làm mất lựa chọn đã có.
       </p>
       {teamsQuery.isLoading ? <p className="text-sm text-muted-foreground">Đang tải team…</p> : null}
-      {teamsQuery.isError ? <p className="text-sm text-[var(--danger-600)]">Không tải được danh sách team.</p> : null}
+      {teamsQuery.isError ? <p className="text-sm text-[var(--danger-700)]">Không tải được danh sách team.</p> : null}
       {!teamsQuery.isLoading && !teamsQuery.isError && availableTeams.length === 0 ? (
         <p className="text-sm text-muted-foreground">Chưa có team để cấu hình.</p>
       ) : null}
@@ -3152,7 +3122,7 @@ function KpiTeamSelector({
           }}
         >
           <SelectTrigger className="w-full bg-card">
-            <Building2 className="size-3.5 text-primary" />
+            <Building2 className="size-3.5 text-muted-foreground" />
             <SelectValue placeholder="Chọn phòng ban" />
           </SelectTrigger>
           <SelectContent searchPlaceholder="Tìm phòng ban...">
@@ -3197,7 +3167,7 @@ function KpiTeamSelector({
           ) : null}
           <div className="flex max-h-44 flex-wrap gap-2 overflow-y-auto overscroll-contain rounded-lg border border-primary/10 bg-card/60 p-2">
             {filteredTeams.map((team) => (
-              <label key={team.id} className="flex cursor-pointer items-center gap-2 rounded-lg bg-card px-3 py-2 text-sm font-medium shadow-sm ring-1 ring-primary/10">
+              <label key={team.id} className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium">
                 <input
                   type="checkbox"
                   className="size-4 accent-primary"
@@ -3296,7 +3266,7 @@ function CreateKpiItemDialog({ groupId }: { groupId: string }) {
               />
             </div>
           </div>
-          {formError ? <p className="text-sm text-[var(--danger-600)]">{formError}</p> : null}
+          {formError ? <p className="text-sm text-[var(--danger-700)]">{formError}</p> : null}
         </div>
         <DialogFooter>
           <DialogClose asChild>
@@ -3398,7 +3368,7 @@ function EditKpiItemDialog({ item }: { item: KpiItem }) {
               </SelectContent>
             </Select>
           </div>
-          {formError ? <p className="text-sm text-[var(--danger-600)]">{formError}</p> : null}
+          {formError ? <p className="text-sm text-[var(--danger-700)]">{formError}</p> : null}
         </div>
         <DialogFooter>
           <DialogClose asChild>
@@ -3473,7 +3443,7 @@ function SetKpiTargetDialog({
             <Label htmlFor="kt-value">Mục tiêu ({item.unit})</Label>
             <Input id="kt-value" type="number" value={targetValue} onChange={(event) => setTargetValue(event.target.value)} />
           </div>
-          {formError ? <p className="text-sm text-[var(--danger-600)]">{formError}</p> : null}
+          {formError ? <p className="text-sm text-[var(--danger-700)]">{formError}</p> : null}
         </div>
         <DialogFooter>
           <DialogClose asChild>
@@ -3554,7 +3524,7 @@ function OverrideTargetDialog({ item, periodId, employeeId, teamId }: {
         <div className="rounded-lg border bg-muted/30 p-3 text-sm">Mục tiêu gốc: <strong>{formatNumber(item.targetOriginalValue ?? item.targetValue ?? 0)}</strong></div>
         <div className="grid gap-1.5"><Label htmlFor={`override-target-${item.kpiItemId}`}>Mục tiêu điều chỉnh ({item.kpiItemUnit})</Label><Input id={`override-target-${item.kpiItemId}`} type="number" min="0" step="any" value={value} onChange={(event) => setValue(event.target.value)} /></div>
         <div className="grid gap-1.5"><Label htmlFor={`override-target-reason-${item.kpiItemId}`}>Lý do điều chỉnh</Label><Textarea id={`override-target-reason-${item.kpiItemId}`} maxLength={1000} value={reason} onChange={(event) => setReason(event.target.value)} /></div>
-        {formError ? <p className="text-sm text-[var(--danger-600)]">{formError}</p> : null}
+        {formError ? <p className="text-sm text-[var(--danger-700)]">{formError}</p> : null}
       </div>
       <DialogFooter>
         {item.targetOverrideValue != null ? <Button variant="outline" disabled={pending} onClick={() => clearMutation.mutate()}>{clearMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : null}Bỏ điều chỉnh</Button> : null}
@@ -3635,7 +3605,7 @@ function SetEmployeeKpiTargetDialog({
               onChange={(event) => setTargetValue(event.target.value)}
             />
           </div>
-          {formError ? <p className="text-sm text-[var(--danger-600)]">{formError}</p> : null}
+          {formError ? <p className="text-sm text-[var(--danger-700)]">{formError}</p> : null}
         </div>
         <DialogFooter>
           <DialogClose asChild>

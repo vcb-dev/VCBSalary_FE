@@ -149,7 +149,7 @@ export function TrafficRevenuePage() {
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-4">
       <PageHeader
         eyebrow="Dữ liệu đầu vào"
         title="Traffic & doanh thu"
@@ -233,7 +233,7 @@ function PeriodStateNotice({ period }: { period: PayrollPeriod | null }) {
   }
   if (period?.status === 'CLOSED') {
     return (
-      <div className="flex items-start gap-2 rounded-xl border bg-muted/50 px-4 py-3 text-sm leading-6 text-muted-foreground">
+      <div className="flex items-start gap-2 rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm leading-6 text-muted-foreground">
         <Lock className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
         <span><strong className="text-foreground">Kỳ lương đã đóng.</strong> Dữ liệu của kỳ này chỉ còn ở chế độ xem.</span>
       </div>
@@ -342,7 +342,7 @@ function TrafficSection({
         />
         <MetricCard
           icon={Eye}
-          tone="success"
+          tone="info"
           label="Traffic hợp lệ"
           value={formatViews(totalAcceptedViews.toString())}
           note={partialScope ? `Trong ${PAGE_SIZE} hồ sơ đang hiển thị` : 'Đã qua đủ 2 bước xác nhận'}
@@ -371,10 +371,10 @@ function TrafficSection({
       <div className="grid gap-4 xl:grid-cols-[22rem_minmax(0,1fr)] xl:items-start">
         <Card className="overflow-hidden py-0">
           <CardContent className="p-0">
-            <div className="space-y-3 border-b p-4">
-              <div>
-                <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Hồ sơ traffic</p>
-                <h2 className="mt-1 text-base font-bold">Chọn nhân sự để xem</h2>
+            <div className="space-y-3 border-b border-border p-4">
+              <div className="min-w-0">
+                <h2 className="text-base font-semibold tracking-tight text-foreground">Hồ sơ traffic</h2>
+                <p className="mt-1 text-xs text-muted-foreground">Chọn một nhân sự để xem chi tiết</p>
               </div>
               <div className="relative">
                 <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
@@ -432,7 +432,7 @@ function TrafficSection({
                   : undefined}
               />
             ) : (
-              <ul className="max-h-[32rem] divide-y overflow-y-auto">
+              <ul className="max-h-[32rem] divide-y divide-border overflow-y-auto">
                 {visibleEmployees.map((employee) => {
                   const state = trafficRowState(employee)
                   const isActive = employee.employeeId === effectiveEmployeeId
@@ -444,7 +444,7 @@ function TrafficSection({
                         onClick={() => setSelectedEmployeeId(employee.employeeId)}
                         aria-current={isActive ? 'true' : undefined}
                         className={`flex w-full items-center gap-3 p-3 text-left transition-colors focus-visible:outline-none ${
-                          isActive ? 'bg-primary/5' : 'hover:bg-muted/50'
+                          isActive ? 'bg-primary/5' : 'hover:bg-muted/40'
                         }`}
                       >
                         <span className="min-w-0 flex-1">
@@ -490,9 +490,8 @@ function TrafficSection({
               <Card className="py-0">
                 <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0">
-                    <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">{profile.teamName ?? 'Chưa có team'}</p>
-                    <h2 className="mt-1 truncate text-lg font-bold">{profile.employeeName}</h2>
-                    <p className="mt-1 text-sm text-muted-foreground">{profile.jobTitle}</p>
+                    <h2 className="truncate text-lg font-bold">{profile.employeeName}</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">{profile.jobTitle} · {profile.teamName ?? 'Chưa có team'}</p>
                   </div>
                   <div className="grid grid-cols-2 gap-6 sm:text-right">
                     <div>
@@ -626,7 +625,7 @@ function TrafficPlatformCard({
         ) : null}
 
         {hasAction ? (
-          <div className="mt-auto flex flex-wrap gap-1.5 border-t pt-3">
+          <div className="mt-auto flex flex-wrap gap-1.5 border-t border-border pt-3">
             {canWrite && editable ? (
               <Button variant="outline" size="sm" className="h-8" onClick={onEdit}>
                 <Pencil className="size-3.5" aria-hidden="true" />{record.id ? 'Sửa' : 'Nhập'}
@@ -850,11 +849,11 @@ function RevenueSection({ period, canWrite }: { period: PayrollPeriod | null; ca
 
       <Card className="overflow-hidden py-0">
         <CardContent className="p-0">
-          <div className="flex flex-col gap-3 border-b p-4">
+          <div className="flex flex-col gap-3 border-b border-border p-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">{period?.name}</p>
-                <h2 className="mt-1 text-base font-bold">Doanh thu theo nhân sự</h2>
+              <div className="min-w-0">
+                <h2 className="text-base font-semibold tracking-tight text-foreground">Doanh thu theo nhân sự</h2>
+                <p className="mt-1 text-xs text-muted-foreground">{period?.name}</p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <div className="relative">
