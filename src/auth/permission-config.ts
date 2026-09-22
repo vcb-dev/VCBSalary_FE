@@ -1,0 +1,75 @@
+export const PAGE_PERMISSIONS = {
+  // Trang Nhân sự & team chỉ dành cho cấp Leader trở lên. `employee.view_self` (Editor /
+  // Content Creator) bị loại khỏi đây để tab không hiện trên sidebar và route bị chặn.
+  employees: ['employee.view_team', 'employee.view_all', 'employee.manage'],
+  kpiOkr: [
+    'kpi.view_self',
+    'kpi.view_team',
+    'kpi.view_all',
+    'kpi.self_confirm',
+    'kpi.leader_approve',
+    'kpi.override',
+    'kpi.configure',
+    'kpi.delete_group',
+    'kpi.assign',
+    'okr.view_self',
+    'okr.view_team',
+    'okr.view_all',
+    'okr.create',
+    'okr.update_self',
+    'okr.self_confirm',
+    'okr.leader_approve',
+    'okr.propose',
+  ],
+  salarySettings: [
+    'reward_rules.view',
+    'reward_rules.manage',
+    'base_salary.view',
+    'base_salary.manage',
+    'kpi_reward_rate.view',
+    'kpi_reward_rate.manage',
+  ],
+  trafficRevenue: [
+    'traffic.view_self',
+    'traffic.view_team',
+    'traffic.view_all',
+    'traffic.write_self',
+    'traffic.write_team',
+    'traffic.leader_approve',
+    'revenue.view_self',
+    'revenue.view_team',
+    'revenue.view_all',
+    'revenue.write',
+  ],
+  salaryRecords: [
+    'salary.view_self',
+    'salary.view_team',
+    'salary.view_all',
+    'salary.calculate',
+    'salary.final_approve',
+    'salary.create_revision',
+  ],
+  kpiSync: ['sync.view', 'sync.trigger'],
+  audit: ['audit.view_self', 'audit.view_team', 'audit.view_all'],
+  notifications: ['notification.view_self'],
+  accessControl: ['user.manage', 'role.view', 'role.manage', 'permission.view'],
+  teamPerformance: [
+    'kpi.view_team',
+    'kpi.view_all',
+    'okr.view_team',
+    'okr.view_all',
+    'traffic.view_team',
+    'traffic.view_all',
+    'revenue.view_team',
+    'revenue.view_all',
+    'salary.view_team',
+    'salary.view_all',
+  ],
+} as const
+
+export function hasAnyPermission(
+  granted: readonly string[] | undefined,
+  expected: readonly string[],
+) {
+  return expected.some((permission) => granted?.includes(permission))
+}

@@ -23,3 +23,12 @@ export function ProtectedRoute() {
 
   return <Outlet />
 }
+
+export function PermissionRoute({ anyOf }: { anyOf: readonly string[] }) {
+  const { user, loading } = useAuth()
+  if (loading) return null
+  if (!user || !anyOf.some((permission) => user.permissions.includes(permission))) {
+    return <Navigate to="/" replace />
+  }
+  return <Outlet />
+}
