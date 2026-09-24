@@ -3,7 +3,6 @@ import {
   CalendarRange,
   LayoutDashboard,
   ReceiptText,
-  RefreshCw,
   ScrollText,
   ShieldCheck,
   SlidersHorizontal,
@@ -29,7 +28,6 @@ export const WORKSPACE_NAVIGATION: NavigationItem[] = [
   { label: 'Nhân sự & team', area: 'Tổ chức', icon: Users, to: '/employees', anyOf: PAGE_PERMISSIONS.employees },
   { label: 'Kỳ lương', area: 'Vận hành lương', icon: CalendarRange, to: '/payroll-periods' },
   { label: 'KPI & OKR', area: 'Hiệu suất', icon: Target, to: '/kpi-okr', anyOf: PAGE_PERMISSIONS.kpiOkr },
-  { label: 'Đồng bộ KPI', area: 'Tích hợp dữ liệu', icon: RefreshCw, to: '/kpi-sync', anyOf: PAGE_PERMISSIONS.kpiSync },
   {
     label: 'Traffic & doanh thu', area: 'Dữ liệu đầu vào', icon: BarChart3, to: '/traffic-revenue',
     anyOf: PAGE_PERMISSIONS.trafficRevenue,

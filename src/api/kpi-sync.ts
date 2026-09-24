@@ -43,6 +43,7 @@ export type KpiSyncRunItem = {
   message: string | null
   employee: { id: string; employeeCode: string; fullName: string } | null
   kpiItem: { id: string; code: string; name: string } | null
+  employeeOkr: { id: string; title: string; goalType: 'KPI' | 'OKR' } | null
 }
 
 export type KpiSyncRunDetail = KpiSyncRun & { items: KpiSyncRunItem[] }
@@ -54,6 +55,19 @@ export async function listKpiSyncRuns(params: { page?: number; pageSize?: number
 
 export async function getKpiSyncRun(id: string) {
   const { data } = await api.get<KpiSyncRunDetail>(`/kpi-sync-runs/${id}`)
+  return data
+}
+
+export type KpiSyncTeam = {
+  id: string
+  code: string
+  name: string
+  externalId: string
+}
+
+/** Team nguồn được phép đồng bộ, BE đã lọc theo phạm vi của quyền sync.trigger. */
+export async function listKpiSyncTeams() {
+  const { data } = await api.get<KpiSyncTeam[]>('/kpi-sync-runs/teams')
   return data
 }
 

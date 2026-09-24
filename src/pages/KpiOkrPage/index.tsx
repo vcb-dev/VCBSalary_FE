@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertCircle, Building2, CalendarDays, CheckCircle2, ChevronRight, ClipboardCheck, Filter, ListX, Loader2, Pencil, Plus, Search, Settings2, Target, UserRound, UserRoundCheck, UsersRound, X } from 'lucide-react'
+import { AlertCircle, Building2, CalendarDays, ChevronDown, ClipboardCheck, Filter, ListX, Loader2, Pencil, Plus, Search, Settings2, Target, UserRound, UserRoundCheck, UsersRound, X } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   cancelKpiAssignment,
@@ -27,7 +27,6 @@ import {
   updateKpiActual,
   updateKpiGroup,
   updateKpiItem,
-  type KpiDataSource,
   type KpiGroup,
   type KpiGroupDetail,
   type KpiItem,
@@ -48,6 +47,7 @@ import {
   rejectProposal,
   selfConfirmOkr,
   updateEmployeeOkr,
+  updateEmployeeOkrReward,
   type EmployeeOkr,
   type KpiOkrProposal,
   type ProposalType,
@@ -76,6 +76,7 @@ import { StatusBadge } from '@/components/shared/StatusBadge'
 import { formatDate, formatMoney, formatNumber, toPercent } from '@/lib/format'
 import { isRecordEditable, periodStageHint, resolvePeriodStage, type PeriodStage } from '@/lib/period-stage'
 import { toneSurface, type Tone } from '@/lib/tone'
+import { KpiSyncDialog } from './KpiSyncDialog'
 
 const KPI_KEYS = {
   groups: ['kpi', 'groups'] as const,
@@ -95,10 +96,6 @@ const EMPLOYEES_PAGE_SIZE = 100
 const EMPTY_EMPLOYEES: Employee[] = []
 const EMPTY_TEAMS: Team[] = []
 const EMPTY_EMPLOYEE_GROUPS: EmployeeGroup[] = []
-const DATA_SOURCE_LABEL: Record<KpiDataSource, string> = {
-  INTERNAL: 'Nhập tay (Internal)',
-  AUTOMATION_GEN_VIDEO: 'Đồng bộ AutomationGenVideo',
-}
 const PROPOSAL_TYPE_LABEL: Record<ProposalType, string> = {
   KPI_ITEM: 'Đầu mục KPI',
   OKR: 'OKR',
@@ -123,6 +120,8 @@ export function KpiOkrPage() {
   const canViewProposals = can('okr.propose') || canReviewProposals
   const canConfigureKpi = can('kpi.configure')
   const canViewKpiConfig = canConfigureKpi || can('kpi.delete_group')
+  const canSyncView = can('sync.view')
+  const canSyncTrigger = can('sync.trigger')
   const canChooseScopedProfile = can('kpi.view_team') || can('kpi.view_all') || can('okr.view_team') || can('okr.view_all')
   const canViewAllProfiles = can('kpi.view_all') || can('okr.view_all')
   const canViewOwnProfile = can('kpi.view_self') || can('okr.view_self')
@@ -183,6 +182,7 @@ export function KpiOkrPage() {
         description={canChooseScopedProfile ? 'Theo dõi KPI và OKR trong phạm vi được phân quyền; mỗi đầu mục được xét và duyệt độc lập.' : 'Theo dõi, cập nhật và xác nhận KPI/OKR của hồ sơ cá nhân theo kỳ lương.'}
         action={
           <div className="flex flex-wrap gap-2">
+            {canSyncView || canSyncTrigger ? <KpiSyncDialog canTrigger={canSyncTrigger} canView={canSyncView} /> : null}
             {canViewKpi && periodStage.isDataEntry ? <AssignKpiDialog periodId={activePeriodId} employeeId={activeEmployeeId} teamId={selectedProfileTeamId} /> : null}
             {canViewOkr && periodStage.isDataEntry ? <CreateOkrDialog periodId={activePeriodId} employeeId={activeEmployeeId} /> : null}
           </div>
@@ -207,7 +207,7 @@ export function KpiOkrPage() {
           </TabsTrigger> : null}
           {canViewOkr ? <TabsTrigger value="okr">
             <ClipboardCheck className="size-4" />
-            OKR cá nhân
+            OKR
           </TabsTrigger> : null}
           {canViewProposals ? <TabsTrigger value="proposals">
             <UserRoundCheck className="size-4" />
@@ -761,7 +761,11 @@ function KpiItemRow({
     <TableRow>
       <TableCell>
         <strong className="block font-semibold text-foreground">{item.kpiItemName}</strong>
-        <code className="text-xs text-muted-foreground">{item.kpiItemCode}</code>
+        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+          <code className="text-xs text-muted-foreground">{item.kpiItemCode}</code>
+          {item.externalItemId ? <StatusBadge tone="info">Đồng bộ VCBI</StatusBadge> : null}
+          {item.direction === 'AT_MOST' ? <StatusBadge tone="muted">Càng thấp càng tốt</StatusBadge> : null}
+        </div>
       </TableCell>
       <TableCell className="text-right whitespace-nowrap tabular-nums">
         {item.targetValue ? <>{formatNumber(item.targetValue)}{unit}</> : '—'}
@@ -823,6 +827,7 @@ function OkrTab({ periodId, employeeId, stage }: { periodId: string | null; empl
   // Đối xứng với quyền tạo OKR (`okr.create`) — không tự chặn theo isSelf vì BE cũng không chặn.
   // Xoá chỉ mở khi kỳ đang nhập liệu: kỳ đang duyệt thì OKR bị từ chối chỉ được sửa, không được xoá.
   const canDelete = (user?.permissions.includes('okr.create') ?? false) && stage.isDataEntry
+  const canManageReward = (user?.permissions.includes('kpi_reward_rate.manage') ?? false) && isRecordEditable(stage)
 
   const okrsQuery = useQuery({
     queryKey: periodId && employeeId ? OKR_KEYS.okrs(periodId, employeeId) : ['okr', 'list', 'none'],
@@ -886,8 +891,8 @@ function OkrTab({ periodId, employeeId, stage }: { periodId: string | null; empl
         <CardContent className="p-0">
           <div className="flex items-center justify-between gap-3 border-b p-5">
             <div className="min-w-0">
-              <h2 className="text-base font-semibold tracking-tight text-foreground">OKR cá nhân</h2>
-              <p className="mt-1 text-xs text-muted-foreground">Mục tiêu của kỳ đang chọn</p>
+              <h2 className="text-base font-semibold tracking-tight text-foreground">OKR</h2>
+              <p className="mt-1 text-xs text-muted-foreground">OKR nội bộ và OKR đồng bộ từ VCBI</p>
             </div>
             <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">
               {formatNumber(okrs.length)} mục tiêu
@@ -897,24 +902,39 @@ function OkrTab({ periodId, employeeId, stage }: { periodId: string | null; empl
             <EmptyState
               icon={ListX}
               title="Chưa có OKR trong kỳ này"
-              description="Tạo OKR để xác định mục tiêu và mức thưởng cho nhân sự trong kỳ lương đang chọn."
+              description="Tạo OKR nội bộ, hoặc dùng nút “Đồng bộ KPI/OKR” ở đầu trang để nhận OKR từ VCBI."
             />
           ) : (
-            <div className="divide-y">
-              {okrs.map((okr) => (
-                <OkrProgressCard
-                  key={okr.id}
-                  okr={okr}
-                  periodId={periodId}
-                  employeeId={employeeId}
-                  stage={stage}
-                  canUpdateSelf={canUpdateSelf}
-                  canSelfConfirm={canSelfConfirm}
-                  canLeaderReview={canLeaderReview}
-                  canDelete={canDelete}
-                />
-              ))}
-            </div>
+            <Table className="min-w-240">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Mục tiêu OKR</TableHead>
+                  <TableHead className="text-right">Chỉ tiêu</TableHead>
+                  <TableHead className="text-right">Thực đạt</TableHead>
+                  <TableHead className="w-44">Tiến độ</TableHead>
+                  <TableHead className="text-right">Mức thưởng</TableHead>
+                  <TableHead>Hạn</TableHead>
+                  <TableHead>Trạng thái</TableHead>
+                  <TableHead className="text-right">Hành động</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {okrs.map((okr) => (
+                  <OkrRow
+                    key={okr.id}
+                    okr={okr}
+                    periodId={periodId}
+                    employeeId={employeeId}
+                    stage={stage}
+                    canUpdateSelf={canUpdateSelf}
+                    canSelfConfirm={canSelfConfirm}
+                    canLeaderReview={canLeaderReview}
+                    canDelete={canDelete}
+                    canManageReward={canManageReward}
+                  />
+                ))}
+              </TableBody>
+            </Table>
           )}
         </CardContent>
       </Card>
@@ -922,7 +942,7 @@ function OkrTab({ periodId, employeeId, stage }: { periodId: string | null; empl
   )
 }
 
-function OkrProgressCard({
+function OkrRow({
   okr,
   periodId,
   employeeId,
@@ -931,6 +951,7 @@ function OkrProgressCard({
   canSelfConfirm,
   canLeaderReview,
   canDelete,
+  canManageReward,
 }: {
   okr: EmployeeOkr
   periodId: string
@@ -940,6 +961,7 @@ function OkrProgressCard({
   canSelfConfirm: boolean
   canLeaderReview: boolean
   canDelete: boolean
+  canManageReward: boolean
 }) {
   const queryClient = useQueryClient()
 
@@ -968,69 +990,66 @@ function OkrProgressCard({
   const statusLabel =
     okr.leaderReviewStatus === 'APPROVED' ? 'Đã duyệt' : okr.leaderReviewStatus === 'REJECTED' ? 'Từ chối' : isConfirmed ? 'Chờ duyệt' : 'Đang nhập'
   const progress = Math.min(Math.max(okr.progressPercent, 0), 100)
+  const unit = okr.unit ? <span className="text-xs font-normal text-muted-foreground"> {okr.unit}</span> : null
+  const hasReward = Number(okr.rewardAmount ?? 0) > 0
 
   return (
-    <article className="grid gap-5 p-5 transition-colors hover:bg-muted/30 xl:grid-cols-[minmax(15rem,1fr)_minmax(19rem,1.1fr)_auto] xl:items-center">
-      <div className="min-w-0">
-        <div className="min-w-0">
-          <h3 className="truncate font-bold text-foreground">{okr.title}</h3>
-          {okr.description ? <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{okr.description}</p> : null}
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-x-5 gap-y-3 sm:grid-cols-[auto_auto_minmax(9rem,1fr)] sm:items-end">
-        <div>
-          <p className="text-xs text-muted-foreground">Mục tiêu</p>
-          <p className="mt-1 font-bold text-foreground tabular-nums">
-            {formatNumber(okr.targetValue)} <span className="text-xs font-medium text-muted-foreground">{okr.unit ?? ''}</span>
-          </p>
-        </div>
-        <div>
-          <p className="text-xs text-muted-foreground">Thực tế</p>
-          <p className="mt-1 font-bold text-foreground tabular-nums">
-            {formatNumber(okr.actualValue)} <span className="text-xs font-medium text-muted-foreground">{okr.unit ?? ''}</span>
-          </p>
-          {okr.overrideValue != null ? (
-            <p className="mt-1 text-xs text-muted-foreground">Dùng để tính: <strong className="text-foreground">{formatNumber(okr.overrideValue)} {okr.unit ?? ''}</strong></p>
-          ) : null}
-        </div>
-        <div className="col-span-2 sm:col-span-1">
-          <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
-            <span>Tiến độ</span>
-            <span className="text-foreground tabular-nums">{okr.progressPercent.toFixed(0)}%</span>
+    <TableRow>
+      <TableCell className="max-w-80 whitespace-normal">
+        <strong className="block font-semibold text-foreground">{okr.title}</strong>
+        {okr.description ? <p className="mt-0.5 line-clamp-2 text-xs leading-5 text-muted-foreground">{okr.description}</p> : null}
+        {okr.goalType === 'KPI' || okr.dataSource === 'AUTOMATION_GEN_VIDEO' || okr.direction === 'AT_MOST' ? (
+          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+            {okr.goalType === 'KPI' ? <StatusBadge tone="muted">KPI</StatusBadge> : null}
+            {okr.dataSource === 'AUTOMATION_GEN_VIDEO' ? <StatusBadge tone="info">Đồng bộ VCBI</StatusBadge> : null}
+            {okr.direction === 'AT_MOST' ? <StatusBadge tone="muted">Càng thấp càng tốt</StatusBadge> : null}
           </div>
+        ) : null}
+      </TableCell>
+      <TableCell className="text-right whitespace-nowrap tabular-nums">
+        {formatNumber(okr.targetValue)}{unit}
+      </TableCell>
+      <TableCell className="text-right whitespace-nowrap tabular-nums">
+        {okr.actualMissing ? <span className="text-muted-foreground">Chưa có</span> : <>{formatNumber(okr.actualValue)}{unit}</>}
+        {okr.overrideValue != null ? (
+          <span className="mt-0.5 block text-xs text-muted-foreground">
+            Tính theo <strong className="font-semibold text-foreground">{formatNumber(okr.overrideValue)}</strong>
+          </span>
+        ) : null}
+      </TableCell>
+      <TableCell>
+        <div className="flex items-center gap-2">
           <ProgressBar
-            className="mt-2 h-2"
             value={progress}
             tone={progress >= 100 ? 'success' : progress >= 50 ? 'info' : 'warning'}
             label={`Tiến độ OKR ${okr.title}`}
           />
+          <span className="w-10 shrink-0 text-right text-xs font-semibold text-foreground tabular-nums">{okr.progressPercent.toFixed(0)}%</span>
         </div>
-      </div>
-      <div className="flex flex-col gap-3 xl:items-end">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 xl:justify-end">
-          <span>
-            <span className="block text-xs text-muted-foreground">Mức thưởng</span>
-            <span className="mt-1 block text-sm font-bold text-foreground tabular-nums">{formatMoney(okr.rewardAmount)}</span>
-          </span>
-          <span>
-            <span className="block text-xs text-muted-foreground">Hạn</span>
-            <span className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-              <CalendarDays className="size-3.5" aria-hidden="true" />
-              {okr.deadline ? formatDate(okr.deadline) : 'Không hạn'}
-            </span>
-          </span>
+      </TableCell>
+      <TableCell className="text-right whitespace-nowrap tabular-nums">
+        {hasReward ? <span className="font-semibold text-foreground">{formatMoney(okr.rewardAmount)}</span> : <span className="text-muted-foreground">Chưa đặt</span>}
+      </TableCell>
+      <TableCell className="whitespace-nowrap text-muted-foreground">
+        {okr.deadline ? formatDate(okr.deadline) : 'Không hạn'}
+      </TableCell>
+      <TableCell>
+        <div className="flex flex-col items-start gap-1">
           <StatusBadge tone={statusTone}>{statusLabel}</StatusBadge>
+          {okr.leaderReviewStatus === 'REJECTED' && okr.leaderRejectionReason ? (
+            <p className="max-w-48 text-xs whitespace-normal text-muted-foreground">Lý do: {okr.leaderRejectionReason}</p>
+          ) : null}
+          {okr.overrideValue != null && okr.overrideReason ? (
+            <p className="max-w-48 text-xs whitespace-normal text-muted-foreground">Điều chỉnh: {okr.overrideReason}</p>
+          ) : null}
         </div>
-        {okr.leaderReviewStatus === 'REJECTED' && okr.leaderRejectionReason ? (
-          <p className="max-w-80 text-xs text-muted-foreground xl:text-right">Lý do từ chối: {okr.leaderRejectionReason}</p>
-        ) : null}
-        {okr.overrideValue != null && okr.overrideReason ? (
-          <p className="max-w-80 text-xs text-muted-foreground xl:text-right">Lý do điều chỉnh: {okr.overrideReason}</p>
-        ) : null}
-        <div className="flex flex-wrap gap-2 xl:justify-end">
-          {canDelete && isDraft ? <DeleteOkrDialog okr={okr} periodId={periodId} employeeId={employeeId} /> : null}
-          {canUpdateSelf && isDraft && isRecordEditable(stage) ? <UpdateOkrDialog okr={okr} periodId={periodId} employeeId={employeeId} /> : null}
-          {canSelfConfirm && isDraft ? (
+      </TableCell>
+      <TableCell>
+        <div className="flex justify-end gap-1">
+          {canManageReward ? <UpdateGoalRewardDialog okr={okr} periodId={periodId} employeeId={employeeId} /> : null}
+          {canDelete && isDraft && okr.dataSource === 'MANUAL' ? <DeleteOkrDialog okr={okr} periodId={periodId} employeeId={employeeId} /> : null}
+          {canUpdateSelf && isDraft && isRecordEditable(stage) && okr.dataSource === 'MANUAL' ? <UpdateOkrDialog okr={okr} periodId={periodId} employeeId={employeeId} /> : null}
+          {canSelfConfirm && isDraft && !okr.actualMissing ? (
             <Button variant="outline" size="sm" onClick={() => confirmMutation.mutate()} disabled={confirmMutation.isPending}>
               {confirmMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
               Tự xác nhận
@@ -1047,8 +1066,8 @@ function OkrProgressCard({
             </>
           ) : null}
         </div>
-      </div>
-    </article>
+      </TableCell>
+    </TableRow>
   )
 }
 
@@ -1799,6 +1818,74 @@ function CreateOkrDialog({ periodId, employeeId }: { periodId: string | null; em
   )
 }
 
+function UpdateGoalRewardDialog({ okr, periodId, employeeId }: { okr: EmployeeOkr; periodId: string; employeeId: string }) {
+  const queryClient = useQueryClient()
+  const [open, setOpen] = useState(false)
+  const [rewardAmount, setRewardAmount] = useState(okr.rewardAmount)
+  const [formError, setFormError] = useState<string | null>(null)
+
+  function handleOpenChange(next: boolean) {
+    if (next) {
+      setRewardAmount(okr.rewardAmount)
+      setFormError(null)
+    }
+    setOpen(next)
+  }
+
+  const mutation = useMutation({
+    mutationFn: () => updateEmployeeOkrReward(okr.id, rewardAmount || '0'),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: OKR_KEYS.okrs(periodId, employeeId) })
+      toast.success('Đã cập nhật mức thưởng')
+      setOpen(false)
+    },
+    onError: (error) => setFormError(getApiErrorMessage(error)),
+  })
+
+  function submit() {
+    setFormError(null)
+    const amount = Number(rewardAmount || '0')
+    if (!Number.isFinite(amount) || amount < 0) {
+      setFormError('Mức thưởng phải là số tiền không âm.')
+      return
+    }
+    mutation.mutate()
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm">
+          <Pencil className="size-4" aria-hidden="true" />
+          Mức thưởng
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Đặt mức thưởng · {okr.title}</DialogTitle>
+          <DialogDescription>
+            Mặc định 0 ₫. Khoản này chỉ được nhận khi {okr.goalType} đạt ngưỡng của kỳ lương.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogBody className="grid gap-4">
+          <div className="grid gap-1.5">
+            <Label htmlFor={`goal-reward-${okr.id}`}>Mức thưởng khi đạt</Label>
+            <MoneyInput id={`goal-reward-${okr.id}`} value={rewardAmount} onValueChange={setRewardAmount} />
+          </div>
+          {formError ? <p className="text-sm text-[var(--danger-700)]">{formError}</p> : null}
+        </DialogBody>
+        <DialogFooter>
+          <DialogClose asChild><Button variant="outline">Hủy</Button></DialogClose>
+          <Button onClick={submit} disabled={mutation.isPending}>
+            {mutation.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
+            Lưu mức thưởng
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 function UpdateOkrDialog({ okr, periodId, employeeId }: { okr: EmployeeOkr; periodId: string; employeeId: string }) {
   const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
@@ -2311,8 +2398,9 @@ function KpiConfigTab() {
   )
   // Xoá nhóm KPI: quyền riêng `kpi.delete_group`, mặc định chỉ ADMIN có.
   const canDeleteGroup = user?.permissions.includes('kpi.delete_group') ?? false
+  const allowedTeamIds = canConfigureAllTeams ? undefined : managedTeamIds
 
-  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null)
+  const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null)
   const [selectedPeriodId, setSelectedPeriodId] = useState<string | null>(null)
   const [groupSearch, setGroupSearch] = useState('')
 
@@ -2331,9 +2419,9 @@ function KpiConfigTab() {
     : scopedGroups
 
   const groupDetailQuery = useQuery({
-    queryKey: selectedGroupId ? KPI_KEYS.group(selectedGroupId) : ['kpi', 'groups', 'none'],
-    queryFn: () => getKpiGroup(selectedGroupId!),
-    enabled: Boolean(selectedGroupId),
+    queryKey: expandedGroupId ? KPI_KEYS.group(expandedGroupId) : ['kpi', 'groups', 'none'],
+    queryFn: () => getKpiGroup(expandedGroupId!),
+    enabled: Boolean(expandedGroupId),
   })
 
   const periodsQuery = useQuery({
@@ -2341,164 +2429,178 @@ function KpiConfigTab() {
     queryFn: () => listPayrollPeriods({ page: 1, pageSize: PERIODS_PAGE_SIZE }),
   })
   const periods = periodsQuery.data?.data ?? []
+  // Mặc định kỳ hiện tại để mục tiêu hiện ngay khi mở nhóm, không bắt chọn kỳ trước.
+  const activePeriodId = selectedPeriodId ?? findCurrentPayrollPeriodId(periods)
 
   const targetsQuery = useQuery({
-    queryKey: selectedPeriodId ? KPI_KEYS.targets(selectedPeriodId) : ['kpi', 'period-targets', 'none'],
-    queryFn: () => listKpiTargetsForPeriod(selectedPeriodId!),
-    enabled: Boolean(selectedPeriodId),
+    queryKey: activePeriodId ? KPI_KEYS.targets(activePeriodId) : ['kpi', 'period-targets', 'none'],
+    queryFn: () => listKpiTargetsForPeriod(activePeriodId!),
+    enabled: Boolean(activePeriodId),
   })
   const targetsByItemId = new Map((targetsQuery.data ?? []).map((target) => [target.kpiItemId, target]))
 
   return (
-    <div className="flex flex-col gap-4">
-      <Card className="overflow-hidden py-0">
-        <CardContent className="p-0">
-          <div className="flex flex-col gap-4 border-b p-5">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0">
-                <h2 className="text-base font-semibold tracking-tight text-foreground">Danh sách nhóm KPI</h2>
-                <p className="mt-1 text-xs text-muted-foreground">Chọn một nhóm để xem và sửa đầu mục</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">
-                  {term ? `${formatNumber(groups.length)}/${formatNumber(scopedGroups.length)} nhóm` : `${formatNumber(scopedGroups.length)} nhóm`}
-                </span>
-                {canConfigure ? <CreateKpiGroupDialog onCreated={setSelectedGroupId} allowedTeamIds={canConfigureAllTeams ? undefined : managedTeamIds} /> : null}
-              </div>
+    <Card className="overflow-hidden py-0">
+      <CardContent className="p-0">
+        <div className="flex flex-col gap-4 border-b p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <h2 className="text-base font-semibold tracking-tight text-foreground">Danh sách nhóm KPI</h2>
+              <p className="mt-1 text-xs text-muted-foreground">Bấm vào một nhóm để xem đầu mục và đặt mục tiêu theo kỳ</p>
             </div>
-
-            {scopedGroups.length > 0 ? (
-              <div className="relative sm:max-w-sm">
-                <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-                <Input
-                  className="w-full pr-9 pl-8"
-                  placeholder="Tìm nhóm KPI theo tên, mã hoặc team"
-                  aria-label="Tìm nhóm KPI"
-                  value={groupSearch}
-                  onChange={(event) => setGroupSearch(event.target.value)}
-                />
-                {groupSearch ? (
-                  <button
-                    type="button"
-                    onClick={() => setGroupSearch('')}
-                    aria-label="Xoá từ khoá tìm kiếm"
-                    className="absolute top-1/2 right-2 grid size-6 -translate-y-1/2 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                  >
-                    <X className="size-4" />
-                  </button>
-                ) : null}
-              </div>
-            ) : null}
+            <div className="flex items-center gap-3">
+              <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">
+                {term ? `${formatNumber(groups.length)}/${formatNumber(scopedGroups.length)} nhóm` : `${formatNumber(scopedGroups.length)} nhóm`}
+              </span>
+              {canConfigure ? <CreateKpiGroupDialog onCreated={setExpandedGroupId} allowedTeamIds={allowedTeamIds} /> : null}
+            </div>
           </div>
 
-          {groupsQuery.isLoading ? (
-            <div className="space-y-3 p-5">{Array.from({ length: 3 }).map((_, index) => <Skeleton key={index} className="h-16 w-full" />)}</div>
-          ) : groupsQuery.isError ? (
-            <QueryError error={groupsQuery.error} onRetry={() => groupsQuery.refetch()} />
-          ) : groups.length === 0 ? (
-            <EmptyState
-              icon={ListX}
-              title={term ? 'Không có nhóm KPI phù hợp' : 'Chưa có nhóm KPI'}
-              description={term
-                ? 'Không tìm thấy nhóm nào khớp từ khoá. Thử từ khoá khác hoặc xoá tìm kiếm.'
-                : 'Bạn chưa có nhóm KPI nào trong phạm vi team được cấu hình. Tạo nhóm mới để bắt đầu thiết lập đầu mục và mục tiêu.'}
-              action={term
-                ? <Button variant="outline" onClick={() => setGroupSearch('')}><X className="size-4" />Xoá tìm kiếm</Button>
-                : canConfigure
-                  ? <CreateKpiGroupDialog onCreated={setSelectedGroupId} allowedTeamIds={canConfigureAllTeams ? undefined : managedTeamIds} />
-                  : undefined}
-            />
-          ) : (
-            <div className="divide-y">
-              {groups.map((group) => {
-                const isActiveGroup = selectedGroupId === group.id
-                return (
-                  <article
-                    key={group.id}
-                    className={`flex flex-col gap-3 p-5 transition-colors sm:flex-row sm:items-center sm:justify-between ${isActiveGroup ? 'bg-primary/5' : 'hover:bg-muted/40'}`}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <code className="rounded-md bg-muted px-2 py-1 text-xs font-semibold tracking-wide text-muted-foreground">{group.code}</code>
-                          <StatusBadge tone={group.isActive ? 'success' : 'muted'}>{group.isActive ? 'Đang hoạt động' : 'Đã tắt'}</StatusBadge>
-                          {group.applicableEmployeeGroups.map((employeeGroup) => (
-                            <span key={employeeGroup.id} className="rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">
-                              {employeeGroup.name}
-                            </span>
-                          ))}
-                          {group.applicableEmployeeGroups.length === 0 ? (
-                            <span className="rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">Gán thủ công</span>
-                          ) : null}
-                          {group.teams.length > 0 ? group.teams.map((team) => (
-                            <span key={team.id} className="rounded-md bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">
-                              {team.name}
-                            </span>
-                          )) : (
-                            <span className="rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">Tất cả team (dữ liệu cũ)</span>
-                          )}
-                        </div>
-                        <h3 className="mt-2 truncate font-bold text-foreground">{group.name}</h3>
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-3 sm:justify-end">
-                      <span className="text-xs text-muted-foreground">{DATA_SOURCE_LABEL[group.dataSource]}</span>
-                      <span className="rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">
-                        {formatNumber(group._count?.items ?? 0)} đầu mục
-                      </span>
-                      {isActiveGroup ? (
-                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-primary">
-                          <CheckCircle2 className="size-3.5" aria-hidden="true" />
-                          Đang xem
-                        </span>
-                      ) : (
-                        <Button variant="outline" size="sm" onClick={() => setSelectedGroupId(group.id)}>
-                          Xem chi tiết <ChevronRight className="size-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </article>
-                )
-              })}
+          {scopedGroups.length > 0 ? (
+            <div className="relative sm:max-w-sm">
+              <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+              <Input
+                className="w-full pr-9 pl-8"
+                placeholder="Tìm nhóm KPI theo tên, mã hoặc team"
+                aria-label="Tìm nhóm KPI"
+                value={groupSearch}
+                onChange={(event) => setGroupSearch(event.target.value)}
+              />
+              {groupSearch ? (
+                <button
+                  type="button"
+                  onClick={() => setGroupSearch('')}
+                  aria-label="Xoá từ khoá tìm kiếm"
+                  className="absolute top-1/2 right-2 grid size-6 -translate-y-1/2 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  <X className="size-4" />
+                </button>
+              ) : null}
             </div>
-          )}
-        </CardContent>
-      </Card>
+          ) : null}
+        </div>
 
-      {!selectedGroupId ? (
-        <InfoNotice
-          title="Chưa chọn nhóm KPI"
-          message="Chọn một nhóm ở danh sách phía trên để xem các đầu mục KPI và đặt mục tiêu theo kỳ."
-        />
-      ) : groupDetailQuery.isLoading ? (
-        <TabSkeleton rows={1} />
-      ) : groupDetailQuery.isError ? (
-        <QueryError error={groupDetailQuery.error} onRetry={() => groupDetailQuery.refetch()} />
-      ) : groupDetailQuery.data ? (
-        <KpiGroupDetailCard
-          group={groupDetailQuery.data}
-          canConfigure={canConfigure}
-          allowedTeamIds={canConfigureAllTeams ? undefined : managedTeamIds}
-          canDeleteGroup={canDeleteGroup}
-          onDeleted={() => setSelectedGroupId(null)}
-          periods={periods}
-          periodsLoading={periodsQuery.isLoading}
-          selectedPeriodId={selectedPeriodId}
-          onSelectPeriod={setSelectedPeriodId}
-          targetsByItemId={targetsByItemId}
-          targetsLoading={targetsQuery.isLoading}
-        />
-      ) : null}
-    </div>
+        {groupsQuery.isLoading ? (
+          <div className="space-y-3 bg-muted/30 p-3 sm:p-4">{Array.from({ length: 3 }).map((_, index) => <Skeleton key={index} className="h-16 w-full rounded-xl" />)}</div>
+        ) : groupsQuery.isError ? (
+          <QueryError error={groupsQuery.error} onRetry={() => groupsQuery.refetch()} />
+        ) : groups.length === 0 ? (
+          <EmptyState
+            icon={ListX}
+            title={term ? 'Không có nhóm KPI phù hợp' : 'Chưa có nhóm KPI'}
+            description={term
+              ? 'Không tìm thấy nhóm nào khớp từ khoá. Thử từ khoá khác hoặc xoá tìm kiếm.'
+              : 'Bạn chưa có nhóm KPI nào trong phạm vi team được cấu hình. Tạo nhóm mới để bắt đầu thiết lập đầu mục và mục tiêu.'}
+            action={term
+              ? <Button variant="outline" onClick={() => setGroupSearch('')}><X className="size-4" />Xoá tìm kiếm</Button>
+              : canConfigure
+                ? <CreateKpiGroupDialog onCreated={setExpandedGroupId} allowedTeamIds={allowedTeamIds} />
+                : undefined}
+          />
+        ) : (
+          <div className="space-y-3 bg-muted/30 p-3 sm:p-4">
+            {groups.map((group) => {
+              const expanded = expandedGroupId === group.id
+              // Đổi nhóm đang mở thì query đổi key, nên chỉ dùng dữ liệu chi tiết khi đúng nhóm này.
+              const detail = expanded && groupDetailQuery.data?.id === group.id ? groupDetailQuery.data : undefined
+              return (
+                <KpiGroupSection
+                  key={group.id}
+                  group={group}
+                  expanded={expanded}
+                  onToggle={() => setExpandedGroupId((current) => (current === group.id ? null : group.id))}
+                  actions={detail && (canConfigure || canDeleteGroup) ? (
+                    <>
+                      {canConfigure ? <EditKpiGroupDialog group={detail} allowedTeamIds={allowedTeamIds} /> : null}
+                      {canDeleteGroup ? <DeleteKpiGroupDialog group={detail} onDeleted={() => setExpandedGroupId(null)} /> : null}
+                    </>
+                  ) : null}
+                >
+                  {groupDetailQuery.isError ? (
+                    <QueryError error={groupDetailQuery.error} onRetry={() => groupDetailQuery.refetch()} />
+                  ) : detail ? (
+                    <KpiGroupPanel
+                      group={detail}
+                      canConfigure={canConfigure}
+                      periods={periods}
+                      periodsLoading={periodsQuery.isLoading}
+                      selectedPeriodId={activePeriodId}
+                      onSelectPeriod={setSelectedPeriodId}
+                      targetsByItemId={targetsByItemId}
+                      targetsLoading={targetsQuery.isLoading}
+                    />
+                  ) : (
+                    <div className="space-y-2 p-4" role="status" aria-label="Đang tải chi tiết nhóm KPI">
+                      <Skeleton className="h-9 w-full sm:w-72" />
+                      {Array.from({ length: 3 }).map((_, index) => <Skeleton key={index} className="h-11 w-full" />)}
+                    </div>
+                  )}
+                </KpiGroupSection>
+              )
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   )
 }
 
-function KpiGroupDetailCard({
+/** Một nhóm KPI dạng mục mở rộng — cùng khuôn với phòng ban ở trang Nhân sự & team. */
+function KpiGroupSection({
+  group,
+  expanded,
+  onToggle,
+  actions,
+  children,
+}: {
+  group: KpiGroup
+  expanded: boolean
+  onToggle: () => void
+  actions: ReactNode
+  children: ReactNode
+}) {
+  const panelId = `kpi-group-${group.id}`
+  const assignment = group.applicableEmployeeGroups.length > 0
+    ? `Tự gán: ${group.applicableEmployeeGroups.map((employeeGroup) => employeeGroup.name).join(', ')}`
+    : 'Gán thủ công'
+
+  return (
+    <section className="overflow-hidden rounded-xl border border-border bg-card">
+      {/* Màn hẹp: nút Sửa/Xoá xuống dòng riêng để tên nhóm không bị ép. */}
+      <div className={`flex flex-col gap-1 p-2 sm:flex-row sm:items-center sm:gap-3 sm:p-3 ${expanded ? 'border-b border-border bg-muted/40' : ''}`}>
+        <button
+          type="button"
+          className="flex min-w-0 flex-1 cursor-pointer items-center justify-between gap-3 rounded-lg p-2 text-left transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:px-3"
+          aria-expanded={expanded}
+          aria-controls={panelId}
+          onClick={onToggle}
+        >
+          <span className="min-w-0">
+            <span className="flex flex-wrap items-center gap-2">
+              <span className="truncate text-[15px] font-bold text-foreground">{group.name}</span>
+              <StatusBadge tone={group.isActive ? 'success' : 'muted'}>{group.isActive ? 'Đang hoạt động' : 'Đã tắt'}</StatusBadge>
+              {group.dataSource === 'AUTOMATION_GEN_VIDEO' ? <StatusBadge tone="info">Đồng bộ VCBI</StatusBadge> : null}
+            </span>
+            <span className="mt-1 block text-xs text-muted-foreground">
+              <code>{group.code}</code> · {formatNumber(group._count?.items ?? 0)} đầu mục · {assignment}
+            </span>
+          </span>
+          <span className="flex shrink-0 items-center gap-2 text-xs font-medium text-muted-foreground">
+            <span className="hidden sm:inline">{expanded ? 'Thu gọn' : 'Xem chi tiết'}</span>
+            <ChevronDown className={`size-4 transition-transform ${expanded ? 'rotate-180' : ''}`} aria-hidden="true" />
+          </span>
+        </button>
+        {actions ? <div className="flex shrink-0 items-center gap-2 px-2 pb-1 sm:p-0">{actions}</div> : null}
+      </div>
+
+      {expanded ? <div id={panelId}>{children}</div> : null}
+    </section>
+  )
+}
+
+function KpiGroupPanel({
   group,
   canConfigure,
-  allowedTeamIds,
-  canDeleteGroup,
-  onDeleted,
   periods,
   periodsLoading,
   selectedPeriodId,
@@ -2508,9 +2610,6 @@ function KpiGroupDetailCard({
 }: {
   group: KpiGroupDetail
   canConfigure: boolean
-  allowedTeamIds?: string[]
-  canDeleteGroup: boolean
-  onDeleted: () => void
   periods: PayrollPeriod[]
   periodsLoading: boolean
   selectedPeriodId: string | null
@@ -2522,53 +2621,19 @@ function KpiGroupDetailCard({
   const canSetTarget = canConfigure && selectedPeriod?.status !== 'CLOSED'
 
   return (
-    <Card className="overflow-hidden py-0">
-      <CardContent className="p-0">
-        <div className="flex flex-col gap-4 border-b p-5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0 flex-1">
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <code className="rounded-md bg-muted px-2 py-1 text-xs font-semibold tracking-wide text-muted-foreground">{group.code}</code>
-              </div>
-              <h2 className="mt-2 truncate text-lg font-bold tracking-tight">{group.name}</h2>
-              {group.description ? <p className="mt-1 text-sm text-muted-foreground">{group.description}</p> : null}
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-              <StatusBadge tone={group.isActive ? 'success' : 'muted'}>
-                {group.isActive ? 'Đang hoạt động' : 'Đã tắt'}
-              </StatusBadge>
-              <span className="text-xs text-muted-foreground">{DATA_SOURCE_LABEL[group.dataSource]}</span>
-              {group.applicableEmployeeGroups.map((employeeGroup) => (
-                <span key={employeeGroup.id} className="rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">
-                  Tự gán: {employeeGroup.name}
-                </span>
-              ))}
-              {group.applicableEmployeeGroups.length === 0 ? (
-                <span className="text-xs font-medium text-muted-foreground">Chỉ gán thủ công</span>
-              ) : null}
-              {group.teams.length > 0 ? group.teams.map((team) => (
-                <span key={team.id} className="rounded-md bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">Team: {team.name}</span>
-              )) : <span className="text-xs font-medium text-muted-foreground">Áp dụng mọi team (dữ liệu cũ)</span>}
-              </div>
-            </div>
-          </div>
-          {canConfigure || canDeleteGroup ? (
-            <div className="flex shrink-0 items-center gap-2">
-              {canConfigure ? <EditKpiGroupDialog group={group} allowedTeamIds={allowedTeamIds} /> : null}
-              {canDeleteGroup ? <DeleteKpiGroupDialog group={group} onDeleted={onDeleted} /> : null}
-            </div>
-          ) : null}
+    <>
+      <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+        <div className="min-w-0">
+          {group.description ? <p className="text-sm text-foreground">{group.description}</p> : null}
+          <p className="text-xs text-muted-foreground">Mục tiêu lưu riêng theo từng kỳ lương, không ảnh hưởng kỳ khác.</p>
         </div>
-        <div className="m-5 flex flex-col gap-3 rounded-xl border bg-muted/40 p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-sm font-semibold">Kỳ lương để xem/đặt mục tiêu</p>
-            <p className="text-xs text-muted-foreground">Mục tiêu lưu riêng theo từng kỳ, không ảnh hưởng kỳ khác.</p>
-          </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <Select
             value={selectedPeriodId ?? undefined}
             onValueChange={onSelectPeriod}
             disabled={periodsLoading || periods.length === 0}
           >
-            <SelectTrigger className="w-full bg-card sm:w-64">
+            <SelectTrigger className="w-full sm:w-56" aria-label="Kỳ lương để xem và đặt mục tiêu">
               <CalendarDays className="size-3.5 text-muted-foreground" />
               <SelectValue placeholder={periods.length === 0 ? 'Chưa có kỳ lương' : 'Chọn kỳ lương'} />
             </SelectTrigger>
@@ -2580,74 +2645,81 @@ function KpiGroupDetailCard({
               ))}
             </SelectContent>
           </Select>
+          {canConfigure && group.items.length > 0 ? <CreateKpiItemDialog groupId={group.id} /> : null}
         </div>
-        <div className="flex flex-col gap-3 border-t p-5 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm font-semibold text-foreground">Đầu mục KPI</p>
-          {canConfigure ? <CreateKpiItemDialog groupId={group.id} /> : null}
+      </div>
+      {group.items.length === 0 ? (
+        <EmptyState
+          size="sm"
+          icon={ListX}
+          title="Chưa có đầu mục KPI"
+          description="Thêm đầu mục để bắt đầu đặt mục tiêu và theo dõi hiệu suất của nhóm này."
+          action={canConfigure ? <CreateKpiItemDialog groupId={group.id} /> : undefined}
+        />
+      ) : (
+        <div className="border-t">
+          <Table className="min-w-160">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Đầu mục</TableHead>
+                <TableHead className="text-center">Thứ tự</TableHead>
+                <TableHead>Trạng thái</TableHead>
+                <TableHead className="text-right">Mục tiêu kỳ</TableHead>
+                <TableHead className="text-right">Hành động</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {group.items.map((item) => {
+                const target = targetsByItemId.get(item.id)
+                return (
+                  <TableRow key={item.id}>
+                    <TableCell>
+                      <strong className="block font-semibold text-foreground">{item.name}</strong>
+                      <span className="text-xs text-muted-foreground"><code>{item.code}</code>{item.unit ? ` · ${item.unit}` : ''}</span>
+                      <div className="mt-1 flex flex-wrap gap-1.5">
+                        {item.externalItemId ? <StatusBadge tone="info">Đồng bộ VCBI</StatusBadge> : null}
+                        {item.direction === 'AT_MOST' ? <StatusBadge tone="muted">Càng thấp càng tốt</StatusBadge> : null}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center tabular-nums">{item.sortOrder}</TableCell>
+                    <TableCell>
+                      <StatusBadge tone={item.isActive ? 'success' : 'muted'}>
+                        {item.isActive ? 'Đang dùng' : 'Đã tắt'}
+                      </StatusBadge>
+                    </TableCell>
+                    <TableCell className="text-right whitespace-nowrap tabular-nums">
+                      {item.externalItemId ? (
+                        <span className="text-muted-foreground">Theo từng nhân sự</span>
+                      ) : !selectedPeriodId ? (
+                        <span className="text-muted-foreground">Chọn kỳ lương</span>
+                      ) : targetsLoading ? (
+                        <Skeleton className="ml-auto h-4 w-16" />
+                      ) : target ? (
+                        <>{formatNumber(target.targetValue)}{item.unit ? <span className="text-xs font-normal text-muted-foreground"> {item.unit}</span> : null}</>
+                      ) : (
+                        <span className="text-muted-foreground">Chưa đặt</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex justify-end gap-1">
+                        {canConfigure && !item.externalItemId ? <EditKpiItemDialog item={item} /> : null}
+                        {canSetTarget && selectedPeriodId && !item.externalItemId ? (
+                          <SetKpiTargetDialog periodId={selectedPeriodId} item={item} currentValue={target?.targetValue} />
+                        ) : item.externalItemId ? (
+                          <span className="text-xs text-muted-foreground">Quản lý tại VCBI</span>
+                        ) : selectedPeriod?.status === 'CLOSED' ? (
+                          <span className="text-xs text-muted-foreground">Kỳ đã khóa</span>
+                        ) : null}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
         </div>
-        {group.items.length === 0 ? (
-          <EmptyState
-            size="sm"
-            icon={ListX}
-            title="Chưa có đầu mục KPI"
-            description="Thêm đầu mục để bắt đầu đặt mục tiêu và theo dõi hiệu suất của nhóm này."
-            action={canConfigure ? <CreateKpiItemDialog groupId={group.id} /> : undefined}
-          />
-        ) : (
-        <Table className="min-w-160">
-          <TableHeader>
-            <TableRow>
-              <TableHead>Đầu mục</TableHead>
-              <TableHead className="text-center">Thứ tự</TableHead>
-              <TableHead>Trạng thái</TableHead>
-              <TableHead className="text-right">Mục tiêu{selectedPeriodId ? ' (kỳ đã chọn)' : ''}</TableHead>
-              <TableHead className="text-right">Hành động</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {group.items.map((item) => {
-              const target = targetsByItemId.get(item.id)
-              return (
-                <TableRow key={item.id}>
-                  <TableCell>
-                    <strong className="block font-semibold text-foreground">{item.name}</strong>
-                    <span className="text-xs text-muted-foreground"><code>{item.code}</code>{item.unit ? ` · ${item.unit}` : ''}</span>
-                  </TableCell>
-                  <TableCell className="text-center tabular-nums">{item.sortOrder}</TableCell>
-                  <TableCell>
-                    <StatusBadge tone={item.isActive ? 'success' : 'muted'}>
-                      {item.isActive ? 'Đang dùng' : 'Đã tắt'}
-                    </StatusBadge>
-                  </TableCell>
-                  <TableCell className="text-right whitespace-nowrap tabular-nums">
-                    {!selectedPeriodId ? (
-                      <span className="text-muted-foreground">Chọn kỳ lương</span>
-                    ) : targetsLoading ? (
-                      <Skeleton className="ml-auto h-4 w-16" />
-                    ) : target ? (
-                      <>{formatNumber(target.targetValue)}{item.unit ? <span className="text-xs font-normal text-muted-foreground"> {item.unit}</span> : null}</>
-                    ) : (
-                      <span className="text-muted-foreground">Chưa đặt</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex justify-end gap-1">
-                      {canConfigure ? <EditKpiItemDialog item={item} /> : null}
-                      {canSetTarget && selectedPeriodId ? (
-                        <SetKpiTargetDialog periodId={selectedPeriodId} item={item} currentValue={target?.targetValue} />
-                      ) : selectedPeriod?.status === 'CLOSED' ? (
-                        <span className="text-xs text-muted-foreground">Kỳ đã khóa</span>
-                      ) : null}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              )
-            })}
-          </TableBody>
-        </Table>
-        )}
-      </CardContent>
-    </Card>
+      )}
+    </>
   )
 }
 

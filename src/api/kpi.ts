@@ -28,6 +28,11 @@ export type KpiItem = {
   code: string
   name: string
   unit: string
+  metricType: 'NUMBER' | 'PERCENT' | 'BOOLEAN'
+  direction: 'AT_LEAST' | 'AT_MOST'
+  externalItemId: string | null
+  externalRevision: number | null
+  sourceUpdatedAt: string | null
   sortOrder: number
   isActive: boolean
   createdAt: string
@@ -226,6 +231,8 @@ export type KpiProfileItem = {
   kpiItemCode: string
   kpiItemName: string
   kpiItemUnit: string
+  direction: 'AT_LEAST' | 'AT_MOST'
+  externalItemId: string | null
   // targetValue/actualValue/overrideValue: Decimal Prisma — string (hoặc null) trong JSON.
   targetValue: string | null
   targetOriginalValue: string | null

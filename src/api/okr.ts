@@ -12,14 +12,25 @@ export type EmployeeOkr = {
   id: string
   employeeId: string
   payrollPeriodId: string
+  teamId: string | null
+  goalType: 'KPI' | 'OKR'
   title: string
   description: string | null
   unit: string | null
+  metricType: 'NUMBER' | 'PERCENT' | 'BOOLEAN'
+  direction: 'AT_LEAST' | 'AT_MOST'
   targetValue: string
   actualValue: string
+  actualMissing: boolean
   overrideValue: string | null
   overrideReason: string | null
   rewardAmount: string
+  dataSource: 'MANUAL' | 'AUTOMATION_GEN_VIDEO'
+  externalItemId: string | null
+  externalRevision: number | null
+  sourceUpdatedAt: string | null
+  syncedAt: string | null
+  isActive: boolean
   deadline: string | null
   selfAssessment: string | null
   selfConfirmationStatus: SelfConfirmationStatus
@@ -60,6 +71,11 @@ export async function createEmployeeOkr(periodId: string, employeeId: string, in
 
 export async function updateEmployeeOkr(id: string, input: { actualValue: number; selfAssessment?: string }) {
   const { data } = await api.patch<EmployeeOkr>(`/employee-okrs/${id}`, input)
+  return data
+}
+
+export async function updateEmployeeOkrReward(id: string, rewardAmount: string) {
+  const { data } = await api.patch<EmployeeOkr>(`/employee-okrs/${id}/reward`, { rewardAmount })
   return data
 }
 

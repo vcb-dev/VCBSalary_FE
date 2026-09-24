@@ -115,7 +115,7 @@ export type SalaryBreakdown = SalaryRecord & {
     teamName: string
     salaryWeightPercent: string
   }>
-  okrItems: Array<SalaryBreakdownItem & { employeeOkrId: string; title: string }>
+  okrItems: Array<SalaryBreakdownItem & { employeeOkrId: string; goalType: 'KPI' | 'OKR'; title: string }>
   components: Array<{
     id: string
     code: string | null

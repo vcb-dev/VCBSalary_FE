@@ -20,6 +20,9 @@ export const PAGE_PERMISSIONS = {
     'okr.self_confirm',
     'okr.leader_approve',
     'okr.propose',
+    // Đồng bộ KPI/OKR là một nút trên trang này, không còn trang riêng.
+    'sync.view',
+    'sync.trigger',
   ],
   salarySettings: [
     'reward_rules.view',
@@ -49,7 +52,6 @@ export const PAGE_PERMISSIONS = {
     'salary.final_approve',
     'salary.create_revision',
   ],
-  kpiSync: ['sync.view', 'sync.trigger'],
   audit: ['audit.view_self', 'audit.view_team', 'audit.view_all'],
   notifications: ['notification.view_self'],
   accessControl: ['user.manage', 'role.view', 'role.manage', 'permission.view'],

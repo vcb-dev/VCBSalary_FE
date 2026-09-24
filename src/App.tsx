@@ -14,7 +14,6 @@ const EmployeesPage = lazy(() => import('@/pages/EmployeesPage').then((module) =
 const SalarySettingsPage = lazy(() => import('@/pages/SalarySettingsPage').then((module) => ({ default: module.SalarySettingsPage })))
 const TrafficRevenuePage = lazy(() => import('@/pages/TrafficRevenuePage').then((module) => ({ default: module.TrafficRevenuePage })))
 const SalaryRecordsPage = lazy(() => import('@/pages/SalaryRecordsPage').then((module) => ({ default: module.SalaryRecordsPage })))
-const KpiSyncPage = lazy(() => import('@/pages/KpiSyncPage').then((module) => ({ default: module.KpiSyncPage })))
 const AuditPage = lazy(() => import('@/pages/AuditPage').then((module) => ({ default: module.AuditPage })))
 const AccessControlPage = lazy(() => import('@/pages/AccessControlPage').then((module) => ({ default: module.AccessControlPage })))
 const TeamPerformancePage = lazy(() => import('@/pages/TeamPerformancePage').then((module) => ({ default: module.TeamPerformancePage })))
@@ -57,9 +56,8 @@ export default function App() {
                 <Route element={<PermissionRoute anyOf={PAGE_PERMISSIONS.salaryRecords} />}>
                   <Route path="salary-records" element={<SalaryRecordsPage />} />
                 </Route>
-                <Route element={<PermissionRoute anyOf={PAGE_PERMISSIONS.kpiSync} />}>
-                  <Route path="kpi-sync" element={<KpiSyncPage />} />
-                </Route>
+                {/* Đồng bộ KPI/OKR đã gộp thành nút trên trang KPI & OKR; giữ đường dẫn cũ cho link đã lưu. */}
+                <Route path="kpi-sync" element={<Navigate to="/kpi-okr" replace />} />
                 <Route element={<PermissionRoute anyOf={PAGE_PERMISSIONS.audit} />}>
                   <Route path="audit" element={<AuditPage />} />
                 </Route>
