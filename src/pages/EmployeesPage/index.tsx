@@ -369,7 +369,7 @@ function OrganizationMetric({
 }
 
 function syncResultMessage(result: OrganizationSyncBatchResult) {
-  if (result.totalTeams === 0) return 'AutomationGenVideo hiện không có team nào để đồng bộ.'
+  if (result.totalTeams === 0) return 'VCBI hiện không có team nào để đồng bộ.'
   return `Đã xử lý ${result.totalTeams} team: ${result.successfulTeams} thành công, ${result.partialTeams} một phần, ${result.failedTeams} thất bại.`
 }
 
@@ -418,9 +418,9 @@ function SyncOrganizationDialog() {
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Đồng bộ nhân sự từ AutomationGenVideo</DialogTitle>
+          <DialogTitle>Đồng bộ nhân sự từ VCBI</DialogTitle>
           <DialogDescription>
-            Hệ thống sẽ lấy toàn bộ team từ AutomationGenVideo và cập nhật nhân sự cùng quan hệ Leader/Manager theo dữ liệu mới nhất.
+            Hệ thống sẽ lấy toàn bộ team từ VCBI và cập nhật nhân sự cùng quan hệ Leader/Manager theo dữ liệu mới nhất.
           </DialogDescription>
         </DialogHeader>
 
@@ -2690,7 +2690,7 @@ function DeleteTeamDialog({ team, memberCount }: { team: Team; memberCount: numb
           <DialogTitle>Xóa team “{team.name}”?</DialogTitle>
           <DialogDescription>
             {isSynced
-              ? 'Team này được đồng bộ từ AutomationGenVideo nên lần đồng bộ sau sẽ tạo lại. Hãy dùng "Sửa team" để chuyển trạng thái sang "Ngừng hoạt động".'
+              ? 'Team này được đồng bộ từ VCBI nên lần đồng bộ sau sẽ tạo lại. Hãy dùng "Sửa team" để chuyển trạng thái sang "Ngừng hoạt động".'
               : memberCount > 0
                 ? `Team còn ${memberCount} nhân sự (kể cả người đã nghỉ). Hãy chuyển họ sang team khác trước, hoặc chuyển team sang "Ngừng hoạt động" để giữ nguyên lịch sử.`
                 : 'Thao tác này không thể hoàn tác. Hệ thống sẽ chặn nếu team còn phân quyền lấy team này làm phạm vi hoặc còn nhóm KPI đang áp dụng.'}
@@ -2774,7 +2774,7 @@ function EditTeamDialog({ team, departments }: { team: Team; departments: Depart
                 {departments.map((department) => <SelectItem key={department.id} value={department.id}>{department.name}</SelectItem>)}
               </SelectContent>
             </Select>
-            {team.sourceSystem === 'AUTOMATION_GEN_VIDEO' ? <p className="text-xs text-muted-foreground">Team đồng bộ từ AutomationGenVideo luôn thuộc phòng Marketing.</p> : null}
+            {team.sourceSystem === 'AUTOMATION_GEN_VIDEO' ? <p className="text-xs text-muted-foreground">Team đồng bộ từ VCBI luôn thuộc phòng Marketing.</p> : null}
           </div>
           <div className="grid gap-1.5">
             <Label>Trạng thái</Label>

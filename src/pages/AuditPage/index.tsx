@@ -605,7 +605,7 @@ function referenceLabels(items: Array<{ id: string; name: string }> | undefined,
 }
 
 const VALUE_LABELS: Record<string, string> = {
-  AUTOMATION_GEN_VIDEO: 'AutomationGenVideo', MANUAL: 'Nhập thủ công', DRAFT: 'Bản nháp', OPEN: 'Đang mở', IN_REVIEW: 'Đang duyệt', CLOSED: 'Đã đóng', PENDING: 'Chờ xử lý', APPROVED: 'Đã duyệt', REJECTED: 'Bị từ chối', CONFIRMED: 'Đã xác nhận', ACTIVE: 'Đang hoạt động', INACTIVE: 'Ngừng hoạt động', LEFT: 'Đã nghỉ việc', LOCKED: 'Đã khóa', ARCHIVED: 'Đã lưu trữ', SUPERSEDED: 'Đã thay thế', WARNING: 'Có cảnh báo', SUCCESS: 'Thành công', FAILED: 'Thất bại', PARTIAL: 'Hoàn tất một phần', TIKTOK: 'TikTok', FACEBOOK: 'Facebook', YOUTUBE: 'YouTube', INSTAGRAM: 'Instagram',
+  AUTOMATION_GEN_VIDEO: 'VCBI', MANUAL: 'Nhập thủ công', DRAFT: 'Bản nháp', OPEN: 'Đang mở', IN_REVIEW: 'Đang duyệt', CLOSED: 'Đã đóng', PENDING: 'Chờ xử lý', APPROVED: 'Đã duyệt', REJECTED: 'Bị từ chối', CONFIRMED: 'Đã xác nhận', ACTIVE: 'Đang hoạt động', INACTIVE: 'Ngừng hoạt động', LEFT: 'Đã nghỉ việc', LOCKED: 'Đã khóa', ARCHIVED: 'Đã lưu trữ', SUPERSEDED: 'Đã thay thế', WARNING: 'Có cảnh báo', SUCCESS: 'Thành công', FAILED: 'Thất bại', PARTIAL: 'Hoàn tất một phần', TIKTOK: 'TikTok', FACEBOOK: 'Facebook', YOUTUBE: 'YouTube', INSTAGRAM: 'Instagram',
 }
 function formatTime(value: string) { return new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit' }).format(new Date(value)) }
 function formatDate(value: string) { return new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(value)) }

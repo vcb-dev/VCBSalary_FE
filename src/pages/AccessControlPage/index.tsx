@@ -1211,7 +1211,7 @@ function RolePermissionsDialog({
 
           {editable && (
             <p className="text-xs text-muted-foreground">
-              Quyền <code>revenue.write</code> được hệ thống khóa và chỉ cấp cho vai trò Kế toán.
+              Quyền “Nhập doanh thu chính thức” được hệ thống khóa và chỉ cấp cho vai trò Kế toán.
             </p>
           )}
 
@@ -1232,10 +1232,7 @@ function RolePermissionsDialog({
                         }
                         onChange={() => toggle(permission.code)}
                       />
-                      <span>
-                        <span className="block">{permissionLabel(permission)}</span>
-                        <code className="text-xs text-muted-foreground">{permission.code}</code>
-                      </span>
+                      <span>{permissionLabel(permission)}</span>
                     </label>
                   ))}
                 </div>
@@ -1408,7 +1405,6 @@ function PermissionCatalogTab({ permissions, loading }: { permissions: Permissio
                   {list.map((permission) => (
                     <div key={permission.code} className="p-3">
                       <span className="block text-sm font-medium">{permissionLabel(permission)}</span>
-                      <code className="text-xs text-muted-foreground">{permission.code}</code>
                     </div>
                   ))}
                 </div>
@@ -1503,7 +1499,6 @@ function MatrixTab({ roles, permissions, loading }: { roles: Role[]; permissions
                     <TableRow key={permission.code}>
                       <TableCell className="sticky left-0 z-10 min-w-60 bg-card whitespace-normal">
                         <span className="block text-sm">{permissionLabel(permission)}</span>
-                        <code className="text-xs text-muted-foreground">{permission.code}</code>
                       </TableCell>
                       {roleColumns.map(({ role, codes }) => (
                         <TableCell key={role.id} className="text-center">

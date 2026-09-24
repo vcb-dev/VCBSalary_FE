@@ -1388,7 +1388,7 @@ function ManualActualDialog({
     <Dialog open={open} onOpenChange={(next) => { if (next) { setActualValue(''); setNote(''); setFormError(null) }; setOpen(next) }}>
       <DialogTrigger asChild><Button size="sm">Nhập tay</Button></DialogTrigger>
       <DialogContent>
-        <DialogHeader><DialogTitle>Nhập tay actual · {item.kpiItemName}</DialogTitle><DialogDescription>AutomationGenVideo không có actual cho đầu mục này. Giá trị nhập sẽ được lưu nguồn MANUAL và ghi audit.</DialogDescription></DialogHeader>
+        <DialogHeader><DialogTitle>Nhập tay actual · {item.kpiItemName}</DialogTitle><DialogDescription>VCBI không có actual cho đầu mục này. Giá trị nhập sẽ được lưu nguồn MANUAL và ghi audit.</DialogDescription></DialogHeader>
         <div className="grid gap-4">
           <div className="grid gap-1.5"><Label htmlFor={`manual-actual-${item.actualId}`}>Thực đạt ({item.kpiItemUnit})</Label><Input id={`manual-actual-${item.actualId}`} type="number" min="0" value={actualValue} onChange={(event) => setActualValue(event.target.value)} /></div>
           <div className="grid gap-1.5"><Label htmlFor={`manual-note-${item.actualId}`}>Ghi chú</Label><Textarea id={`manual-note-${item.actualId}`} value={note} onChange={(event) => setNote(event.target.value)} /></div>
@@ -2731,7 +2731,7 @@ function CreateKpiGroupDialog({ onCreated, allowedTeamIds }: { onCreated: (id: s
             <Textarea id="kg-desc" value={description} onChange={(event) => setDescription(event.target.value)} />
           </div>
           <p className="rounded-lg bg-secondary p-3 text-xs leading-5 text-secondary-foreground">
-            Kết quả và target hiện được nhập trong hệ thống. Nguồn AutomationGenVideo sẽ được mở lại khi luồng đồng bộ hoàn thiện.
+            Kết quả và target hiện được nhập trong hệ thống. Nguồn VCBI sẽ được mở lại khi luồng đồng bộ hoàn thiện.
           </p>
           <KpiTeamSelector value={teamIds} onChange={setTeamIds} allowedTeamIds={allowedTeamIds} />
           <EmployeeGroupSelector
