@@ -82,6 +82,7 @@ import { formatDateTime as formatDateTimeVn, formatNumber, toPercent } from '@/l
 import { PLATFORM_LABEL, PLATFORM_SURFACE } from '@/lib/platform'
 import { toneSurface, toneText, type Tone } from '@/lib/tone'
 import { useDebouncedValue } from '@/lib/use-debounced-value'
+import { RunTrafficSyncDialog } from './RunTrafficSyncDialog'
 
 const TRAFFIC_VIEW_PERMISSIONS = ['traffic.view_self', 'traffic.view_team', 'traffic.view_all']
 const REVENUE_VIEW_PERMISSIONS = ['revenue.view_self', 'revenue.view_team', 'revenue.view_all']
@@ -123,6 +124,7 @@ export function TrafficRevenuePage() {
   const { user } = useAuth()
   const canViewTraffic = hasAnyPermission(user?.permissions, TRAFFIC_VIEW_PERMISSIONS)
   const canViewRevenue = hasAnyPermission(user?.permissions, REVENUE_VIEW_PERMISSIONS)
+  const canTriggerSync = user?.permissions.includes('sync.trigger') ?? false
   const [periodId, setPeriodId] = useState('')
   // Tab nằm trên URL để gửi link thẳng tới đúng tab và không mất khi tải lại trang.
   const [searchParams, setSearchParams] = useSearchParams()
@@ -160,18 +162,22 @@ export function TrafficRevenuePage() {
           </StatusBadge>
         ) : null}
         action={periods.length ? (
-          <Select value={effectivePeriodId} onValueChange={setPeriodId}>
-            <SelectTrigger className="min-w-52 bg-card" aria-label="Chọn kỳ lương">
-              <SelectValue placeholder="Chọn kỳ lương" />
-            </SelectTrigger>
-            <SelectContent>
-              {periods.map((period) => (
-                <SelectItem value={period.id} key={period.id}>
-                  {period.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Chỉ thuộc tab Traffic: doanh thu có nguồn khác, không kéo từ AutomationGenVideo. */}
+            {activeTab === 'traffic' && canTriggerSync ? <RunTrafficSyncDialog period={selectedPeriod} /> : null}
+            <Select value={effectivePeriodId} onValueChange={setPeriodId}>
+              <SelectTrigger className="min-w-52 bg-card" aria-label="Chọn kỳ lương">
+                <SelectValue placeholder="Chọn kỳ lương" />
+              </SelectTrigger>
+              <SelectContent>
+                {periods.map((period) => (
+                  <SelectItem value={period.id} key={period.id}>
+                    {period.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         ) : null}
       />
 
