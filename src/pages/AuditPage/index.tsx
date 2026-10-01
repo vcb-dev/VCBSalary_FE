@@ -78,6 +78,8 @@ const ACTION_META: Record<string, ActionMeta> = {
   SALARY_APPROVED: action('Duyệt lương', 'Bản lương đã được phê duyệt.', 'Lương', 'success'),
   SALARY_LOCKED: action('Khóa lương', 'Bản lương đã được khóa và không thể sửa trực tiếp.', 'Lương', 'success'),
   SALARY_REVISION_CREATED: action('Tạo phiên bản lương mới', 'Một phiên bản điều chỉnh đã được tạo từ bản lương đã khóa.', 'Lương', 'warning'),
+  SALARY_BONUS_ADDED: action('Thêm thưởng thêm', 'Một khoản thưởng thêm đã được cộng vào tổng lương.', 'Lương', 'success'),
+  SALARY_BONUS_REMOVED: action('Xóa thưởng thêm', 'Một khoản thưởng thêm đã được gỡ khỏi tổng lương.', 'Lương', 'warning'),
 }
 
 const ENTITY_LABELS: Record<string, string> = {
@@ -104,6 +106,9 @@ const FIELD_LABELS: Record<string, string> = {
   monthlyBaseSalary: 'Lương cơ bản',
   rewardAmount: 'Mức thưởng',
   totalSalaryAmount: 'Tổng lương',
+  bonusName: 'Khoản thưởng thêm',
+  bonusAmount: 'Số tiền thưởng thêm',
+  note: 'Ghi chú',
   versionNumber: 'Phiên bản',
   warningCount: 'Số cảnh báo',
   conflictRecords: 'Bản ghi xung đột',

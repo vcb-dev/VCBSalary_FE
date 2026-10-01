@@ -31,10 +31,13 @@ import { MoneyInput } from '@/components/shared/MoneyInput'
 import { MetricCard } from '@/components/shared/MetricCard'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { StatusBadge } from '@/components/shared/StatusBadge'
+import { usePayrollPeriodSelection } from '@/contexts/PayrollPeriodContext'
 import { formatCompactMoney, toPercent } from '@/lib/format'
+import { selectDefaultPayrollPeriod } from '@/lib/payroll-period'
 import { calculateSalaryGoal } from '@/lib/salary-goal'
 import { toneSurface, type Tone } from '@/lib/tone'
 import { useDebouncedValue } from '@/lib/use-debounced-value'
+import { ExtraBonusCard } from './ExtraBonusCard'
 
 const PAGE_SIZE = 100
 const ALL = '__all__'
@@ -58,8 +61,8 @@ type SortKey = 'name' | 'total'
 
 export function SalaryRecordsPage() {
   const { user } = useAuth()
+  const { selectedPeriodId: globalPeriodId, selectPeriod } = usePayrollPeriodSelection()
   const queryClient = useQueryClient()
-  const [periodId, setPeriodId] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const search = useDebouncedValue(searchInput.trim(), 350)
   const [statusFilter, setStatusFilter] = useState<RowStatusFilter>(ALL)
@@ -74,6 +77,7 @@ export function SalaryRecordsPage() {
   const canCalculate = user?.permissions.includes('salary.calculate') ?? false
   const canApprove = user?.permissions.includes('salary.final_approve') ?? false
   const canCreateRevision = user?.permissions.includes('salary.create_revision') ?? false
+  const canManageBonus = user?.permissions.includes('salary.bonus') ?? false
   const canViewSalary = user?.permissions.some((permission) =>
     ['salary.view_self', 'salary.view_team', 'salary.view_all'].includes(permission),
   ) ?? false
@@ -92,7 +96,9 @@ export function SalaryRecordsPage() {
   const departments = useMemo(() => departmentsQuery.data ?? [], [departmentsQuery.data])
   const teams = useMemo(() => teamsQuery.data ?? [], [teamsQuery.data])
   const visibleTeams = useMemo(() => departmentId ? teams.filter((team) => team.departmentId === departmentId) : teams, [departmentId, teams])
-  const selectedPeriodId = periodId || (periods.find((period) => period.status === 'OPEN' || period.status === 'IN_REVIEW') ?? periods[0])?.id || ''
+  const selectedPeriodId = periods.some((period) => period.id === globalPeriodId)
+    ? globalPeriodId!
+    : selectDefaultPayrollPeriod(periods)?.id || ''
   const selectedPeriod = periods.find((period) => period.id === selectedPeriodId) ?? null
 
   const salariesQuery = useQuery({
@@ -222,7 +228,7 @@ export function SalaryRecordsPage() {
           <h2 className="text-base font-semibold tracking-tight text-foreground">{selectedPeriod?.name ?? 'Chưa có kỳ lương'}</h2>
           <p className="mt-1 text-xs text-muted-foreground">Kỳ đang xem</p>
         </div>
-        <Select value={selectedPeriodId || undefined} onValueChange={(value) => { setPeriodId(value); setSelfVersion(null); setGoalRecord(null) }}>
+        <Select value={selectedPeriodId || undefined} onValueChange={(value) => { selectPeriod(value); setSelfVersion(null); setGoalRecord(null) }}>
           <SelectTrigger className="w-full sm:w-64" aria-label="Chọn kỳ lương của tôi">
             <CalendarDays className="size-4 text-muted-foreground" aria-hidden="true" />
             <SelectValue placeholder="Chọn kỳ lương" />
@@ -374,7 +380,7 @@ export function SalaryRecordsPage() {
                 ) : null}
               </div>
 
-              <Select value={selectedPeriodId || undefined} onValueChange={setPeriodId}>
+              <Select value={selectedPeriodId || undefined} onValueChange={selectPeriod}>
                 <SelectTrigger className="w-full" aria-label="Chọn kỳ lương">
                   <CalendarDays className="size-3.5 text-muted-foreground" aria-hidden="true" />
                   <SelectValue placeholder="Chọn kỳ lương" />
@@ -561,6 +567,7 @@ export function SalaryRecordsPage() {
         id={detailId}
         canApprove={canApprove && periodCalculable}
         canCreateRevision={canCreateRevision && periodCalculable}
+        canManageBonus={canManageBonus && periodCalculable}
         onClose={() => setDetailId(null)}
         onSelectVersion={setDetailId}
         onAction={(type, record, employeeName) => setSalaryAction({ type, record, employeeName })}
@@ -657,12 +664,12 @@ function SalaryGoalDialog({ selected, onClose }: { selected: { id: string; emplo
   </DialogContent></Dialog>
 }
 
-function SalaryDetailDialog({ id, canApprove, canCreateRevision, onClose, onSelectVersion, onAction }: { id: string | null; canApprove: boolean; canCreateRevision: boolean; onClose: () => void; onSelectVersion: (id: string) => void; onAction: (type: 'approve' | 'revision', record: SalaryRecord, employeeName: string) => void }) {
+function SalaryDetailDialog({ id, canApprove, canCreateRevision, canManageBonus, onClose, onSelectVersion, onAction }: { id: string | null; canApprove: boolean; canCreateRevision: boolean; canManageBonus: boolean; onClose: () => void; onSelectVersion: (id: string) => void; onAction: (type: 'approve' | 'revision', record: SalaryRecord, employeeName: string) => void }) {
   const query = useQuery({ queryKey: ['salary-record', id], queryFn: () => getSalaryBreakdown(id!), enabled: Boolean(id) })
   const record = query.data
   return <Dialog open={Boolean(id)} onOpenChange={(open) => !open && onClose()}><DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-3xl">
     <DialogHeader><DialogTitle>Chi tiết lương & thưởng</DialogTitle><DialogDescription>{record ? `${record.employeeName} · ${record.employeeCode} · Ruleset v${record.rewardRuleSetVersion}` : 'Đang tải snapshot bản tính'}</DialogDescription></DialogHeader>
-    {query.isLoading ? <div className="space-y-3"><Skeleton className="h-20 w-full" /><Skeleton className="h-48 w-full" /></div> : query.isError || !record ? <ErrorCard onRetry={() => query.refetch()} /> : <SalaryBreakdownContent record={record} onSelectVersion={onSelectVersion} />}
+    {query.isLoading ? <div className="space-y-3"><Skeleton className="h-20 w-full" /><Skeleton className="h-48 w-full" /></div> : query.isError || !record ? <ErrorCard onRetry={() => query.refetch()} /> : <SalaryBreakdownContent record={record} onSelectVersion={onSelectVersion} canManageBonus={canManageBonus} />}
     {record && ((canApprove && record.status === 'PENDING') || (canCreateRevision && record.status === 'LOCKED')) ? <DialogFooter>
       {canCreateRevision && record.status === 'LOCKED' ? <Button variant="outline" onClick={() => onAction('revision', record, record.employeeName)}><RefreshCw className="size-4" />Tạo phiên bản điều chỉnh</Button> : null}
       {canApprove && record.status === 'PENDING' ? <Button onClick={() => onAction('approve', record, record.employeeName)}><ShieldCheck className="size-4" />Duyệt và khóa lương</Button> : null}
@@ -670,7 +677,7 @@ function SalaryDetailDialog({ id, canApprove, canCreateRevision, onClose, onSele
   </DialogContent></Dialog>
 }
 
-function SalaryBreakdownContent({ record, onSelectVersion, personal = false }: { record: SalaryBreakdown; onSelectVersion: (id: string) => void; personal?: boolean }) {
+function SalaryBreakdownContent({ record, onSelectVersion, personal = false, canManageBonus = false }: { record: SalaryBreakdown; onSelectVersion: (id: string) => void; personal?: boolean; canManageBonus?: boolean }) {
   return <div className="space-y-4">
     {record.warnings.length > 0 ? <Alert className="border-[var(--danger-500)]/25 bg-[var(--danger-500)]/6 text-foreground"><AlertCircle className="text-[var(--danger-700)]" /><AlertTitle>{record.warnings.length} cảnh báo cần xử lý</AlertTitle><AlertDescription><ul className="mt-2 list-disc space-y-1 pl-4">{record.warnings.map((warning, index) => <li key={`${warning.code}-${index}`}>{warning.message}</li>)}</ul></AlertDescription></Alert> : null}
     <Card className={`py-0 ${record.status === 'LOCKED' ? 'border-[var(--success-500)]/30 bg-[var(--success-500)]/6' : ''}`}><CardContent className="grid gap-4 p-4 sm:grid-cols-3">
@@ -680,8 +687,9 @@ function SalaryBreakdownContent({ record, onSelectVersion, personal = false }: {
     </CardContent></Card>
     <div className="grid gap-4 sm:grid-cols-2">
       <Card className="py-0"><CardContent className="p-4"><p className="text-sm font-semibold text-foreground">{personal ? 'Doanh thu & lượt xem' : 'Nguồn snapshot'}</p><dl className="mt-3 divide-y text-sm"><Amount label="Doanh thu" value={formatVnd(record.revenueAmount)} /><Amount label="Mốc doanh thu" value={record.revenueRewardBracketLabel ?? 'Không khớp'} /><Amount label="Hoa hồng" value={`${formatPercent(record.commissionRatePercent)} · ${formatVnd(record.commissionAmount)}`} /><Amount label="Views hợp lệ" value={formatNumber(record.totalViews)} /><Amount label="RPM / 1.000 views" value={formatVnd(record.rpmRatePer1000Views)} /></dl></CardContent></Card>
-      <Card className="py-0"><CardContent className="p-4"><p className="text-sm font-semibold text-foreground">Cấu phần thu nhập</p><dl className="mt-3 divide-y text-sm"><Amount label="Lương cơ bản" value={formatVnd(record.baseSalaryAmount)} /><Amount label="Thưởng KPI" value={formatVnd(record.kpiRewardAmount)} /><Amount label="Thưởng OKR" value={formatVnd(record.okrRewardAmount)} /><Amount label="Hoa hồng" value={formatVnd(record.commissionAmount)} /><Amount label="Tiền RPM" value={formatVnd(record.rpmRewardAmount)} />{record.components.length > 0 ? <Amount label="Khoản bổ sung" value={formatVnd(record.additionalComponentAmount)} /> : null}<Amount label="Tổng lương" value={formatVnd(record.totalSalaryAmount)} strong /></dl></CardContent></Card>
+      <Card className="py-0"><CardContent className="p-4"><p className="text-sm font-semibold text-foreground">Cấu phần thu nhập</p><dl className="mt-3 divide-y text-sm"><Amount label="Lương cơ bản" value={formatVnd(record.baseSalaryAmount)} /><Amount label="Thưởng KPI" value={formatVnd(record.kpiRewardAmount)} /><Amount label="Thưởng OKR" value={formatVnd(record.okrRewardAmount)} /><Amount label="Hoa hồng" value={formatVnd(record.commissionAmount)} /><Amount label="Tiền RPM" value={formatVnd(record.rpmRewardAmount)} />{record.components.length > 0 ? <Amount label="Thưởng thêm" value={formatVnd(record.additionalComponentAmount)} /> : null}<Amount label="Tổng lương" value={formatVnd(record.totalSalaryAmount)} strong /></dl></CardContent></Card>
     </div>
+    <ExtraBonusCard key={record.id} record={record} canManage={canManageBonus} />
     <BreakdownTable title="KPI theo team" empty="Không có nhóm KPI được gán." rows={record.kpiItems.map((item) => ({ id: item.id, name: `${item.teamName} · ${item.kpiGroupName} · tỷ trọng ${item.salaryWeightPercent}%`, progress: item.progressPercent, threshold: item.thresholdPercent, configured: item.rewardAmount, earned: item.earnedAmount, achieved: item.isAchieved }))} />
     <BreakdownTable title="OKR" empty="Không có OKR trong kỳ." rows={record.okrItems.map((item) => ({ id: item.id, name: item.title, progress: item.progressPercent, threshold: item.thresholdPercent, configured: item.rewardAmount, earned: item.earnedAmount, achieved: item.isAchieved }))} />
     {record.versionHistory.length > 1 ? <Card className="overflow-hidden py-0"><CardContent className="p-0"><div className="flex items-center gap-2 border-b border-border p-4"><History className="size-4 text-muted-foreground" /><h3 className="text-sm font-semibold text-foreground">Lịch sử phiên bản</h3></div><div className="divide-y">{record.versionHistory.map((version) => <button type="button" key={version.id} className="flex w-full items-center justify-between gap-4 p-4 text-left transition-colors hover:bg-muted/40" onClick={() => onSelectVersion(version.id)}><span><strong className="block">Phiên bản {version.versionNumber}{version.id === record.id ? ' · Đang xem' : ''}</strong><span className="mt-0.5 block text-xs text-muted-foreground">{version.approvedBy ? `Duyệt bởi ${version.approvedBy.fullName}` : `Tạo bởi ${version.calculatedBy.fullName}`} · {formatDateTime(version.lockedAt ?? version.calculatedAt)}</span></span><span className="flex items-center gap-3"><span className="font-semibold">{formatVnd(version.totalSalaryAmount)}</span><StatusBadge tone={STATUS_META[version.status].tone}>{STATUS_META[version.status].label}</StatusBadge></span></button>)}</div></CardContent></Card> : null}

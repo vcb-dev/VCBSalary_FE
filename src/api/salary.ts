@@ -116,15 +116,32 @@ export type SalaryBreakdown = SalaryRecord & {
     salaryWeightPercent: string
   }>
   okrItems: Array<SalaryBreakdownItem & { employeeOkrId: string; goalType: 'KPI' | 'OKR'; title: string }>
-  components: Array<{
-    id: string
-    code: string | null
-    name: string
-    amount: string
-    note: string | null
-    source: 'MANUAL' | 'SYSTEM'
-  }>
+  components: SalaryComponent[]
   versionHistory: SalaryVersionSummary[]
+}
+
+/** Khoản cộng thêm ngoài công thức; khoản `MANUAL` mã `BONUS` là thưởng thêm do leader/admin nhập. */
+export type SalaryComponent = {
+  id: string
+  code: string | null
+  name: string
+  amount: string
+  note: string | null
+  source: 'MANUAL' | 'SYSTEM'
+  createdAt: string
+  createdBy: SalaryActor
+}
+
+export type SalaryBonusInput = {
+  name: string
+  amount: string
+  note?: string
+}
+
+export type SalaryBonusResult = {
+  id: string
+  salaryRecordId: string
+  totalSalaryAmount: string
 }
 
 export async function listSalaryRecords(
@@ -171,5 +188,15 @@ export async function approveSalaryRecord(id: string) {
 
 export async function createSalaryRevision(id: string) {
   const { data } = await api.post<SalaryWorkflowResult>(`/salary-records/${id}/create-revision`)
+  return data
+}
+
+export async function addSalaryBonus(recordId: string, input: SalaryBonusInput) {
+  const { data } = await api.post<SalaryBonusResult>(`/salary-records/${recordId}/bonuses`, input)
+  return data
+}
+
+export async function removeSalaryBonus(recordId: string, bonusId: string) {
+  const { data } = await api.delete<SalaryBonusResult>(`/salary-records/${recordId}/bonuses/${bonusId}`)
   return data
 }

@@ -51,6 +51,7 @@ export const PAGE_PERMISSIONS = {
     'salary.calculate',
     'salary.final_approve',
     'salary.create_revision',
+    'salary.bonus',
   ],
   audit: ['audit.view_self', 'audit.view_team', 'audit.view_all'],
   notifications: ['notification.view_self'],
