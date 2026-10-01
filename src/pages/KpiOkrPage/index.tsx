@@ -73,7 +73,9 @@ import { MoneyInput } from '@/components/shared/MoneyInput'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { ProgressBar } from '@/components/shared/ProgressBar'
 import { StatusBadge } from '@/components/shared/StatusBadge'
+import { usePayrollPeriodSelection } from '@/contexts/PayrollPeriodContext'
 import { formatDate, formatMoney, formatNumber, toPercent } from '@/lib/format'
+import { selectDefaultPayrollPeriod } from '@/lib/payroll-period'
 import { isRecordEditable, periodStageHint, resolvePeriodStage, type PeriodStage } from '@/lib/period-stage'
 import { toneSurface, type Tone } from '@/lib/tone'
 import { KpiSyncDialog } from './KpiSyncDialog'
@@ -101,18 +103,9 @@ const PROPOSAL_TYPE_LABEL: Record<ProposalType, string> = {
   OKR: 'OKR',
 }
 
-function findCurrentPayrollPeriodId(periods: PayrollPeriod[]) {
-  const today = new Date()
-  const todayAtMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()
-  return periods.find((period) => {
-    const start = new Date(`${period.startDate.slice(0, 10)}T00:00:00`).getTime()
-    const end = new Date(`${period.endDate.slice(0, 10)}T23:59:59`).getTime()
-    return start <= todayAtMidnight && todayAtMidnight <= end
-  })?.id ?? null
-}
-
 export function KpiOkrPage() {
   const { user } = useAuth()
+  const { selectedPeriodId, selectPeriod: setSelectedPeriodId } = usePayrollPeriodSelection()
   const can = (permission: string) => user?.permissions.includes(permission) ?? false
   const canViewKpi = can('kpi.view_self') || can('kpi.view_team') || can('kpi.view_all')
   const canViewOkr = can('okr.view_self') || can('okr.view_team') || can('okr.view_all')
@@ -146,7 +139,6 @@ export function KpiOkrPage() {
     setSearchParams(next, { replace: true })
   }
 
-  const [selectedPeriodId, setSelectedPeriodId] = useState<string | null>(null)
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null)
   const [selectedProfileTeamId, setSelectedProfileTeamId] = useState<string | null>(null)
   // Scope TEAM do Access Control gán là nguồn chính xác để xác định team Leader quản lý.
@@ -164,7 +156,7 @@ export function KpiOkrPage() {
     queryKey: ['payroll-periods', { pageSize: PERIODS_PAGE_SIZE }],
     queryFn: () => listPayrollPeriods({ page: 1, pageSize: PERIODS_PAGE_SIZE }),
   })
-  const activePeriodId = selectedPeriodId ?? findCurrentPayrollPeriodId(periodsQuery.data?.data ?? [])
+  const activePeriodId = selectedPeriodId ?? selectDefaultPayrollPeriod(periodsQuery.data?.data ?? [])?.id ?? null
   // Trạng thái kỳ quyết định nhóm nút nào được mở: OPEN cho nhập liệu, IN_REVIEW cho xác nhận/duyệt.
   const activePeriod = (periodsQuery.data?.data ?? []).find((period) => period.id === activePeriodId)
   const periodStage = resolvePeriodStage(activePeriod?.status)
@@ -2388,6 +2380,7 @@ function RejectProposalDialog({ proposalId }: { proposalId: string }) {
 
 function KpiConfigTab() {
   const { user } = useAuth()
+  const { selectedPeriodId, selectPeriod: setSelectedPeriodId } = usePayrollPeriodSelection()
   const canConfigure = user?.permissions.includes('kpi.configure') ?? false
   const canConfigureAllTeams = user?.permissions.includes('kpi.view_all') ?? false
   const managedTeamIds = useMemo(
@@ -2401,7 +2394,6 @@ function KpiConfigTab() {
   const allowedTeamIds = canConfigureAllTeams ? undefined : managedTeamIds
 
   const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null)
-  const [selectedPeriodId, setSelectedPeriodId] = useState<string | null>(null)
   const [groupSearch, setGroupSearch] = useState('')
 
   const groupsQuery = useQuery({ queryKey: KPI_KEYS.groups, queryFn: listKpiGroups })
@@ -2429,8 +2421,8 @@ function KpiConfigTab() {
     queryFn: () => listPayrollPeriods({ page: 1, pageSize: PERIODS_PAGE_SIZE }),
   })
   const periods = periodsQuery.data?.data ?? []
-  // Mặc định kỳ hiện tại để mục tiêu hiện ngay khi mở nhóm, không bắt chọn kỳ trước.
-  const activePeriodId = selectedPeriodId ?? findCurrentPayrollPeriodId(periods)
+  // Mặc định kỳ chưa hoàn tất cũ nhất để không bỏ qua công việc còn tồn của kỳ trước.
+  const activePeriodId = selectedPeriodId ?? selectDefaultPayrollPeriod(periods)?.id ?? null
 
   const targetsQuery = useQuery({
     queryKey: activePeriodId ? KPI_KEYS.targets(activePeriodId) : ['kpi', 'period-targets', 'none'],

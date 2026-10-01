@@ -18,7 +18,7 @@ import {
 import { Link } from 'react-router-dom'
 import type { Paginated } from '@/api/access-control'
 import { listDepartments, listTeams } from '@/api/organization'
-import { listPayrollPeriods, listPayrollPeriodYears, type PayrollPeriod } from '@/api/payroll-periods'
+import { listPayrollPeriods, listPayrollPeriodYears } from '@/api/payroll-periods'
 import { listRevenue } from '@/api/revenue'
 import { listSalaryRecords } from '@/api/salary'
 import { listTraffic } from '@/api/traffic'
@@ -32,8 +32,10 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
+import { usePayrollPeriodSelection } from '@/contexts/PayrollPeriodContext'
 
 import { formatCompactMoney, formatMoney, formatNumber, sumAmounts } from '@/lib/format'
+import { selectDefaultPayrollPeriod } from '@/lib/payroll-period'
 import { toneSurface } from '@/lib/tone'
 
 const DashboardCharts = lazy(() => import('./DashboardCharts').then((module) => ({ default: module.DashboardCharts })))
@@ -41,8 +43,8 @@ const MemberDashboard = lazy(() => import('./MemberDashboard').then((module) => 
 
 export function HomePage() {
   const queryClient = useQueryClient()
-  const [chosenYear, setChosenYear] = useState(() => new Date().getFullYear())
-  const [chosenPeriodId, setChosenPeriodId] = useState('')
+  const { periods: allPeriods, selectedPeriod, selectedPeriodId, selectPeriod } = usePayrollPeriodSelection()
+  const chosenYear = selectedPeriod?.payrollYear ?? new Date().getFullYear()
   const [chosenDepartmentId, setChosenDepartmentId] = useState('all')
   const [chosenTeamId, setChosenTeamId] = useState('all')
   const { user } = useAuth()
@@ -74,7 +76,12 @@ export function HomePage() {
   })
   const periods = periodsQuery.data?.data ?? []
   const availableYears = Array.from(new Set([new Date().getFullYear(), ...(yearsQuery.data ?? [])])).sort((a, b) => b - a)
-  const period = periods.find((item) => item.id === chosenPeriodId) ?? selectCurrentPeriod(periods)
+  const period = periods.find((item) => item.id === selectedPeriodId) ?? selectDefaultPayrollPeriod(periods)
+
+  function changeYear(year: number) {
+    const nextPeriod = selectDefaultPayrollPeriod(allPeriods.filter((item) => item.payrollYear === year))
+    if (nextPeriod) selectPeriod(nextPeriod.id)
+  }
   const departmentsQuery = useQuery({
     queryKey: ['departments', 'dashboard'],
     queryFn: listDepartments,
@@ -116,7 +123,7 @@ export function HomePage() {
         role={role}
         year={chosenYear}
         availableYears={availableYears}
-        onYearChange={(year) => { setChosenYear(year); setChosenPeriodId('') }}
+        onYearChange={changeYear}
         periodsLoading={periodsQuery.isLoading}
         periodsError={periodsQuery.isError}
       /></Suspense>
@@ -209,11 +216,11 @@ export function HomePage() {
 
       {availableYears.length > 0 ? (
         <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card px-3 py-2.5" aria-label="Bộ lọc tổng quan">
-          <Select value={String(chosenYear)} onValueChange={(value) => { setChosenYear(Number(value)); setChosenPeriodId('') }}>
+          <Select value={String(chosenYear)} onValueChange={(value) => changeYear(Number(value))}>
             <SelectTrigger className="w-full sm:w-30" aria-label="Chọn năm thống kê"><SelectValue /></SelectTrigger>
             <SelectContent>{availableYears.map((year) => <SelectItem key={year} value={String(year)}>Năm {year}</SelectItem>)}</SelectContent>
           </Select>
-          {period ? <Select value={period.id} onValueChange={setChosenPeriodId}>
+          {period ? <Select value={period.id} onValueChange={selectPeriod}>
             <SelectTrigger className="w-full sm:w-46" aria-label="Chọn kỳ lương"><SelectValue /></SelectTrigger>
             <SelectContent>{periods.map((item) => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}</SelectContent>
           </Select> : null}
@@ -407,10 +414,6 @@ async function loadAllPages<T>(fetchPage: (page: number) => Promise<Paginated<T>
   if (first.meta.totalPages <= 1) return first.data
   const rest = await Promise.all(Array.from({ length: first.meta.totalPages - 1 }, (_, index) => fetchPage(index + 2)))
   return [first, ...rest].flatMap((page) => page.data)
-}
-
-function selectCurrentPeriod(periods?: PayrollPeriod[]) {
-  return periods?.find((item) => item.status === 'OPEN') ?? periods?.find((item) => item.status === 'IN_REVIEW') ?? periods?.[0]
 }
 
 function downloadCsv(filename: string, rows: string[][]) {

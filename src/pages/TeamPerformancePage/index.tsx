@@ -22,8 +22,10 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
+import { usePayrollPeriodSelection } from '@/contexts/PayrollPeriodContext'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { formatCompactMoney, formatMoney, formatNumber, toPercent } from '@/lib/format'
+import { selectDefaultPayrollPeriod } from '@/lib/payroll-period'
 import { type Tone } from '@/lib/tone'
 import { useDebouncedValue } from '@/lib/use-debounced-value'
 
@@ -44,6 +46,8 @@ type SortKey = 'name' | 'revenue' | 'views'
 
 export function TeamPerformancePage() {
   const { user } = useAuth()
+  const { periods: allPeriods, selectedPeriod, selectedPeriodId, selectPeriod } = usePayrollPeriodSelection()
+  const chosenYear = selectedPeriod?.payrollYear ?? new Date().getFullYear()
   const permissions = user?.permissions ?? []
   const can = (permission: string) => permissions.includes(permission)
   const canKpi = can('kpi.view_team') || can('kpi.view_all')
@@ -52,8 +56,6 @@ export function TeamPerformancePage() {
   const canRevenue = can('revenue.view_team') || can('revenue.view_all')
   const canSalary = can('salary.view_team') || can('salary.view_all')
   const canExport = can('report.export')
-  const [chosenYear, setChosenYear] = useState(() => new Date().getFullYear())
-  const [chosenPeriodId, setChosenPeriodId] = useState('')
   const [teamId, setTeamId] = useState('all')
   const [searchInput, setSearchInput] = useState('')
   const search = useDebouncedValue(searchInput.trim().toLowerCase(), 250)
@@ -65,11 +67,15 @@ export function TeamPerformancePage() {
   const yearsQuery = useQuery({ queryKey: ['payroll-periods', 'years'], queryFn: listPayrollPeriodYears, staleTime: 60_000 })
   const periods = periodsQuery.data?.data ?? []
   const availableYears = Array.from(new Set([new Date().getFullYear(), ...(yearsQuery.data ?? [])])).sort((a, b) => b - a)
-  const defaultPeriod = periods.find((item) => item.status === 'OPEN')
-    ?? periods.find((item) => item.status === 'IN_REVIEW')
-    ?? periods[0]
-  const periodId = chosenPeriodId || defaultPeriod?.id || ''
+  const defaultPeriod = selectDefaultPayrollPeriod(periods)
+  const periodId = periods.some((item) => item.id === selectedPeriodId) ? selectedPeriodId! : defaultPeriod?.id || ''
   const currentPeriod = periods.find((item) => item.id === periodId) ?? null
+
+  function changeYear(year: number) {
+    setTeamId('all')
+    const nextPeriod = selectDefaultPayrollPeriod(allPeriods.filter((item) => item.payrollYear === year))
+    if (nextPeriod) selectPeriod(nextPeriod.id)
+  }
 
   const salaryQuery = useQuery({
     queryKey: ['salary-records', periodId, 'team-performance'],
@@ -182,11 +188,11 @@ export function TeamPerformancePage() {
 
       {/* Bộ lọc tách khỏi header: ba ô chọn nhồi vào vùng hành động làm header phình ra và xuống dòng lộn xộn. */}
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card px-3 py-2.5" aria-label="Bộ lọc hiệu suất team">
-        <Select value={String(chosenYear)} onValueChange={(value) => { setChosenYear(Number(value)); setChosenPeriodId(''); setTeamId('all') }}>
+        <Select value={String(chosenYear)} onValueChange={(value) => changeYear(Number(value))}>
           <SelectTrigger className="w-full sm:w-30" aria-label="Chọn năm báo cáo"><SelectValue /></SelectTrigger>
           <SelectContent>{availableYears.map((year) => <SelectItem key={year} value={String(year)}>Năm {year}</SelectItem>)}</SelectContent>
         </Select>
-        <Select value={periodId || undefined} onValueChange={setChosenPeriodId}>
+        <Select value={periodId || undefined} onValueChange={selectPeriod}>
           <SelectTrigger className="w-full sm:w-46" aria-label="Chọn kỳ lương"><SelectValue placeholder="Chọn kỳ lương" /></SelectTrigger>
           <SelectContent>
             {periods.map((period) => <SelectItem key={period.id} value={period.id}>{period.name}</SelectItem>)}

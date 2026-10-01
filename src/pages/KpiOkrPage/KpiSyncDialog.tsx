@@ -17,7 +17,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { EmptyState } from '@/components/shared/EmptyState'
 import { ErrorState } from '@/components/shared/ErrorState'
 import { StatusBadge } from '@/components/shared/StatusBadge'
+import { usePayrollPeriodSelection } from '@/contexts/PayrollPeriodContext'
 import { formatDateTime, formatNumber, formatRelativeTime } from '@/lib/format'
+import { selectDefaultPayrollPeriod } from '@/lib/payroll-period'
 import { toneSurface, toneText, type Tone } from '@/lib/tone'
 
 const RUNS_KEY = ['kpi-sync-runs'] as const
@@ -58,6 +60,7 @@ function needsAttention(run: KpiSyncRun) {
  */
 export function KpiSyncDialog({ canTrigger, canView }: { canTrigger: boolean; canView: boolean }) {
   const queryClient = useQueryClient()
+  const { selectedPeriodId: globalPeriodId } = usePayrollPeriodSelection()
   const [open, setOpen] = useState(false)
   const [detailId, setDetailId] = useState<string | null>(null)
   const [teamId, setTeamId] = useState('')
@@ -84,7 +87,9 @@ export function KpiSyncDialog({ canTrigger, canView }: { canTrigger: boolean; ca
   // chỉ liệt kê kỳ đang mở thay vì để người dùng chạy một lượt chắc chắn không ghi được gì.
   const periods = useMemo(() => (periodsQuery.data?.data ?? []).filter((period) => period.status === 'OPEN'), [periodsQuery.data])
   const selectedTeamId = teamId || teams[0]?.externalId || ''
-  const selectedPeriodId = periodId || periods[0]?.id || ''
+  const selectedPeriodId = periodId
+    || (periods.some((period) => period.id === globalPeriodId) ? globalPeriodId! : selectDefaultPayrollPeriod(periods)?.id)
+    || ''
 
   const mutation = useMutation({
     mutationFn: () => triggerKpiSync({ externalTeamId: selectedTeamId, payrollPeriodId: selectedPeriodId }),

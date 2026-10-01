@@ -1,12 +1,13 @@
 import { CalendarDays, ChevronDown, ChevronRight, LogOut, Menu, ShieldCheck } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link, Outlet, useLocation } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useAuth } from '@/auth/AuthContext'
 import { PAGE_PERMISSIONS } from '@/auth/permission-config'
 import { getUnreadNotificationCount } from '@/api/notifications'
@@ -15,10 +16,15 @@ import { NotificationsPopover } from '@/components/layout/NotificationsPopover'
 import {
   MANAGEMENT_NAVIGATION, WORKSPACE_NAVIGATION, canShowNavigationItem, findNavigationItem,
 } from '@/components/layout/navigation'
-import { listPayrollPeriods } from '@/api/payroll-periods'
+import { PayrollPeriodProvider, usePayrollPeriodSelection } from '@/contexts/PayrollPeriodContext'
 
 export function AppLayout() {
+  return <PayrollPeriodProvider><AppLayoutContent /></PayrollPeriodProvider>
+}
+
+function AppLayoutContent() {
   const { user, logout } = useAuth()
+  const { periods, selectedPeriod: currentPeriod, selectPeriod, isLoading: periodsLoading } = usePayrollPeriodSelection()
   const location = useLocation()
   // Drawer mobile gắn với đường dẫn đã mở nó: điều hướng (kể cả nút back) làm nó tự đóng mà
   // không cần effect đồng bộ thêm.
@@ -49,14 +55,6 @@ export function AppLayout() {
     refetchInterval: 60_000,
   })
   const unreadCount = unreadQuery.data?.count ?? 0
-  const periodsQuery = useQuery({
-    queryKey: ['payroll-periods', 'layout'],
-    queryFn: () => listPayrollPeriods({ pageSize: 100 }),
-    staleTime: 60_000,
-  })
-  const currentPeriod = periodsQuery.data?.data.find((period) => period.status === 'OPEN')
-    ?? periodsQuery.data?.data.find((period) => period.status === 'IN_REVIEW')
-    ?? periodsQuery.data?.data[0]
   const periodLabel = currentPeriod?.name ?? 'Chưa có kỳ lương'
   const sidebarPeriod = {
     label: periodLabel,
@@ -117,7 +115,20 @@ export function AppLayout() {
           </div>
 
           <div className="flex items-center gap-1 sm:gap-2">
-            <Button asChild variant="outline" className="hidden max-w-48 bg-white md:inline-flex"><Link to="/payroll-periods"><CalendarDays className="size-4 shrink-0 text-primary" /><span className="truncate">{periodLabel}</span><ChevronDown className="size-3.5 shrink-0 text-muted-foreground" /></Link></Button>
+            <Select value={currentPeriod?.id} onValueChange={selectPeriod} disabled={periodsLoading || periods.length === 0}>
+              <SelectTrigger className="hidden h-11 w-56 cursor-pointer rounded-xl bg-white md:flex" aria-label="Chọn kỳ lương đang xem">
+                <CalendarDays className="size-4 shrink-0 text-primary" aria-hidden="true" />
+                <SelectValue placeholder={periodsLoading ? 'Đang tải kỳ lương…' : 'Chưa có kỳ lương'}>{periodLabel}</SelectValue>
+              </SelectTrigger>
+              <SelectContent position="popper" align="end" className="w-72" searchPlaceholder="Tìm kỳ lương…">
+                {periods.map((period) => (
+                  <SelectItem key={period.id} value={period.id} searchText={`${period.name} ${period.code}`}>
+                    <span className="min-w-0 flex-1 truncate">{period.name}</span>
+                    <span className="shrink-0 text-xs text-muted-foreground">{periodStatusLabel(period.status)}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {canViewNotifications ? <NotificationsPopover unreadCount={unreadCount} /> : null}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

@@ -78,7 +78,9 @@ import { MoneyInput } from '@/components/shared/MoneyInput'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { PlatformIcon } from '@/components/shared/PlatformIcon'
 import { StatusBadge } from '@/components/shared/StatusBadge'
+import { usePayrollPeriodSelection } from '@/contexts/PayrollPeriodContext'
 import { formatDateTime as formatDateTimeVn, formatNumber, toPercent } from '@/lib/format'
+import { selectDefaultPayrollPeriod } from '@/lib/payroll-period'
 import { PLATFORM_LABEL, PLATFORM_SURFACE } from '@/lib/platform'
 import { toneSurface, toneText, type Tone } from '@/lib/tone'
 import { useDebouncedValue } from '@/lib/use-debounced-value'
@@ -116,16 +118,12 @@ const PERIOD_STATUS_LABEL: Record<PayrollPeriod['status'], string> = {
   CLOSED: 'Đã khóa',
 }
 
-function chooseDefaultPeriod(periods: PayrollPeriod[]) {
-  return periods.find((period) => period.status === 'OPEN') ?? periods[0] ?? null
-}
-
 export function TrafficRevenuePage() {
   const { user } = useAuth()
+  const { selectedPeriodId: globalPeriodId, selectPeriod } = usePayrollPeriodSelection()
   const canViewTraffic = hasAnyPermission(user?.permissions, TRAFFIC_VIEW_PERMISSIONS)
   const canViewRevenue = hasAnyPermission(user?.permissions, REVENUE_VIEW_PERMISSIONS)
   const canTriggerSync = user?.permissions.includes('sync.trigger') ?? false
-  const [periodId, setPeriodId] = useState('')
   // Tab nằm trên URL để gửi link thẳng tới đúng tab và không mất khi tải lại trang.
   const [searchParams, setSearchParams] = useSearchParams()
 
@@ -135,7 +133,9 @@ export function TrafficRevenuePage() {
     enabled: canViewTraffic || canViewRevenue,
   })
   const periods = periodsQuery.data?.data ?? []
-  const effectivePeriodId = periodId || chooseDefaultPeriod(periods)?.id || ''
+  const effectivePeriodId = periods.some((period) => period.id === globalPeriodId)
+    ? globalPeriodId!
+    : selectDefaultPayrollPeriod(periods)?.id || ''
   const selectedPeriod = periods.find((period) => period.id === effectivePeriodId) ?? null
 
   const defaultTab = canViewTraffic ? 'traffic' : 'revenue'
@@ -165,7 +165,7 @@ export function TrafficRevenuePage() {
           <div className="flex flex-wrap items-center gap-2">
             {/* Chỉ thuộc tab Traffic: doanh thu có nguồn khác, không kéo từ AutomationGenVideo. */}
             {activeTab === 'traffic' && canTriggerSync ? <RunTrafficSyncDialog period={selectedPeriod} /> : null}
-            <Select value={effectivePeriodId} onValueChange={setPeriodId}>
+            <Select value={effectivePeriodId} onValueChange={selectPeriod}>
               <SelectTrigger className="min-w-52 bg-card" aria-label="Chọn kỳ lương">
                 <SelectValue placeholder="Chọn kỳ lương" />
               </SelectTrigger>

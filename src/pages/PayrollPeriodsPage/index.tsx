@@ -60,7 +60,9 @@ import { PageHeader } from '@/components/shared/PageHeader'
 import { ErrorState } from '@/components/shared/ErrorState'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { WorkflowSteps } from '@/components/shared/WorkflowSteps'
+import { usePayrollPeriodSelection } from '@/contexts/PayrollPeriodContext'
 import { daysUntil, formatDate, formatNumber } from '@/lib/format'
+import { selectDefaultPayrollPeriod } from '@/lib/payroll-period'
 import { toneSurface, type Tone } from '@/lib/tone'
 
 const ALL = '__all__'
@@ -92,14 +94,6 @@ const STATUS_HINT: Record<PayrollPeriodStatus, string> = {
   IN_REVIEW: 'Đang duyệt dữ liệu và bảng lương',
   CLOSED: 'Đã chốt, chỉ xem lại',
 }
-// Ưu tiên hiển thị kỳ đang xử lý gần cuối luồng nhất làm "kỳ nổi bật" ở đầu trang.
-const HIGHLIGHT_PRIORITY: Record<PayrollPeriodStatus, number> = {
-  IN_REVIEW: 0,
-  OPEN: 1,
-  DRAFT: 2,
-  CLOSED: 3,
-}
-
 const PERIOD_KEYS = {
   periods: ['payroll-periods'] as const,
   snapshots: (id: string) => ['payroll-periods', id, 'snapshots'] as const,
@@ -157,10 +151,17 @@ function PayrollStatusMetric({
 
 export function PayrollPeriodsPage() {
   const { user } = useAuth()
+  const {
+    periods: allPeriods,
+    selectedPeriod,
+    selectedPeriodId: selectedId,
+    isPeriodSelectionExplicit,
+    selectPeriod: selectGlobalPeriod,
+    resetPeriodSelection,
+  } = usePayrollPeriodSelection()
+  const selectedYear = selectedPeriod?.payrollYear ?? new Date().getFullYear()
   const canManage = user?.permissions.includes('payroll_period.manage') ?? false
   const canExport = user?.permissions.includes('report.export') ?? false
-  const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear())
-  const [selectedId, setSelectedId] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<string>(ALL)
   const [search, setSearch] = useState('')
 
@@ -177,17 +178,20 @@ export function PayrollPeriodsPage() {
   const periods = periodsData ?? []
   const availableYears = Array.from(new Set([new Date().getFullYear(), ...(yearsQuery.data ?? [])])).sort((a, b) => b - a)
 
+  function changeYear(year: number) {
+    setStatusFilter(ALL)
+    setSearch('')
+    const nextPeriod = selectDefaultPayrollPeriod(allPeriods.filter((item) => item.payrollYear === year))
+    if (nextPeriod) selectGlobalPeriod(nextPeriod.id)
+  }
+
   const highlighted = useMemo(() => {
     const list = periodsData ?? []
     if (selectedId) {
       const found = list.find((item) => item.id === selectedId)
       if (found) return found
     }
-    return [...list].sort((a, b) => {
-      const priorityDiff = HIGHLIGHT_PRIORITY[a.status] - HIGHLIGHT_PRIORITY[b.status]
-      if (priorityDiff !== 0) return priorityDiff
-      return b.startDate.localeCompare(a.startDate)
-    })[0]
+    return selectDefaultPayrollPeriod(list)
   }, [periodsData, selectedId])
 
   const countByStatus = useMemo(() => {
@@ -233,7 +237,7 @@ export function PayrollPeriodsPage() {
   const readiness = needsReadinessCheck ? readinessQuery.data : undefined
 
   function selectPeriod(id: string) {
-    setSelectedId(id)
+    selectGlobalPeriod(id)
     document.getElementById(PERIOD_DETAIL_ID)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
@@ -272,7 +276,7 @@ export function PayrollPeriodsPage() {
           : `Theo dõi các kỳ lương theo từng tháng của năm ${selectedYear}.`}
         meta={(
           <div className="flex flex-wrap items-center gap-2.5" aria-label="Bộ lọc năm kỳ lương">
-            <Select value={String(selectedYear)} onValueChange={(value) => { setSelectedYear(Number(value)); setSelectedId(null); setStatusFilter(ALL); setSearch('') }}>
+            <Select value={String(selectedYear)} onValueChange={(value) => changeYear(Number(value))}>
               <SelectTrigger className="h-9 w-30" aria-label="Chọn năm quản lý kỳ lương"><SelectValue /></SelectTrigger>
               <SelectContent>{availableYears.map((year) => <SelectItem key={year} value={String(year)}>Năm {year}</SelectItem>)}</SelectContent>
             </Select>
@@ -343,10 +347,10 @@ export function PayrollPeriodsPage() {
                     <div className="flex flex-wrap items-center gap-2">
                       <StatusBadge tone={STATUS_TONE[highlighted.status]}>{STATUS_LABEL[highlighted.status]}</StatusBadge>
                       <code className="rounded-md bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">{highlighted.code}</code>
-                      {selectedId && selectedId === highlighted.id ? (
+                      {isPeriodSelectionExplicit && selectedId === highlighted.id ? (
                         <button
                           type="button"
-                          onClick={() => setSelectedId(null)}
+                          onClick={resetPeriodSelection}
                           className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
                         >
                           <X className="size-3" aria-hidden="true" />
