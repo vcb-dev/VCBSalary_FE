@@ -761,7 +761,7 @@ function ManageUserDialog({
           Quản lý
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Quản lý tài khoản</DialogTitle>
           <DialogDescription>{account.email}</DialogDescription>

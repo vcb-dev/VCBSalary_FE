@@ -135,7 +135,7 @@
 
 @layer base {
   * { @apply border-border outline-ring/50; }
-  html { font-size: 14px; scroll-behavior: smooth; @apply font-sans; }
+  html { font-size: 15px; scroll-behavior: smooth; @apply font-sans; }
   body {
     min-width: 320px;
     min-height: 100vh;
