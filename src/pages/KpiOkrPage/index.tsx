@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertCircle, Building2, CalendarDays, ChevronDown, ClipboardCheck, Filter, ListX, Loader2, Pencil, Plus, Search, Settings2, Target, UserRound, UserRoundCheck, UsersRound, X } from 'lucide-react'
+import { AlertCircle, Building2, CalendarDays, ChevronDown, ClipboardCheck, Filter, ListChecks, ListX, Loader2, Pencil, Plus, Search, Settings2, Target, UserRound, UserRoundCheck, UsersRound, X } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   cancelKpiAssignment,
@@ -79,6 +79,7 @@ import { selectDefaultPayrollPeriod } from '@/lib/payroll-period'
 import { isRecordEditable, periodStageHint, resolvePeriodStage, type PeriodStage } from '@/lib/period-stage'
 import { toneSurface, type Tone } from '@/lib/tone'
 import { KpiSyncDialog } from './KpiSyncDialog'
+import { TaskComplianceTab } from './TaskComplianceTab'
 
 const KPI_KEYS = {
   groups: ['kpi', 'groups'] as const,
@@ -123,9 +124,10 @@ export function KpiOkrPage() {
   const visibleTabs = [
     canViewKpi ? 'kpi' : null,
     canViewOkr ? 'okr' : null,
+    canViewKpi ? 'compliance' : null,
     canViewProposals ? 'proposals' : null,
     canViewKpiConfig ? 'config' : null,
-  ].filter((tab): tab is 'kpi' | 'okr' | 'proposals' | 'config' => Boolean(tab))
+  ].filter((tab): tab is 'kpi' | 'okr' | 'compliance' | 'proposals' | 'config' => Boolean(tab))
   const defaultTab = visibleTabs[0]
   const accessLabel = can('kpi.view_all') || can('okr.view_all') ? 'Toàn hệ thống' : canChooseScopedProfile ? 'Phạm vi team' : 'Hồ sơ cá nhân'
   // Tab nằm trên URL để chia sẻ được link tới đúng tab (ví dụ hàng chờ duyệt) và không mất khi F5.
@@ -201,6 +203,10 @@ export function KpiOkrPage() {
             <ClipboardCheck className="size-4" />
             OKR
           </TabsTrigger> : null}
+          {canViewKpi ? <TabsTrigger value="compliance">
+            <ListChecks className="size-4" />
+            Tuân thủ nhiệm vụ
+          </TabsTrigger> : null}
           {canViewProposals ? <TabsTrigger value="proposals">
             <UserRoundCheck className="size-4" />
             Đề xuất chờ duyệt
@@ -217,6 +223,7 @@ export function KpiOkrPage() {
         </TabsList>
         {canViewKpi ? <TabsContent value="kpi" className="mt-3"><KpiTab periodId={activePeriodId} employeeId={activeEmployeeId} stage={periodStage} /></TabsContent> : null}
         {canViewOkr ? <TabsContent value="okr" className="mt-3"><OkrTab periodId={activePeriodId} employeeId={activeEmployeeId} stage={periodStage} /></TabsContent> : null}
+        {canViewKpi ? <TabsContent value="compliance" className="mt-3"><TaskComplianceTab periodId={activePeriodId} employeeId={activeEmployeeId} teamId={selectedProfileTeamId} /></TabsContent> : null}
         {canViewProposals ? <TabsContent value="proposals" className="mt-3"><ProposalTab periodId={activePeriodId} /></TabsContent> : null}
         {canViewKpiConfig ? <TabsContent value="config" className="mt-3"><KpiConfigTab /></TabsContent> : null}
       </Tabs> : <PermissionNotice message="Tài khoản của bạn chưa được cấp quyền xem KPI, OKR hoặc cấu hình KPI." />}

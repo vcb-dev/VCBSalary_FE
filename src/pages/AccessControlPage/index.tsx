@@ -178,7 +178,7 @@ export function AccessControlPage() {
   }
 
   const usersQuery = useQuery({
-    queryKey: [...AC_KEYS.users, { pageSize: USERS_PAGE_SIZE }],
+    queryKey: [...AC_KEYS.users, { pageSize: USERS_PAGE_SIZE, viewerUserId: user?.id }],
     queryFn: () => listUsers({ page: 1, pageSize: USERS_PAGE_SIZE }),
     enabled: canManageUsers,
   })
@@ -188,7 +188,7 @@ export function AccessControlPage() {
   // Chỉ để đổ dropdown "gắn nhân sự" nên lọc sẵn nhân sự đã nghỉ ở BE — danh sách này khác
   // với query đầy đủ của trang Nhân sự, nên query key phải mang theo cờ excludeLeft.
   const employeesQuery = useQuery({
-    queryKey: ['org', 'employees', { pageSize: EMPLOYEES_PAGE_SIZE, excludeLeft: true }],
+    queryKey: ['org', 'employees', { pageSize: EMPLOYEES_PAGE_SIZE, excludeLeft: true, viewerUserId: user?.id }],
     queryFn: () => listEmployees({ page: 1, pageSize: EMPLOYEES_PAGE_SIZE, excludeLeft: true }),
     enabled: canManageUsers,
   })
