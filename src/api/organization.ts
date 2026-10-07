@@ -99,10 +99,9 @@ export async function listEmployees(params: ListEmployeesParams = {}) {
   return data
 }
 
+// Không có chức danh: BE lấy tên các nhóm nghiệp vụ làm chức danh hiển thị.
 export type CreateEmployeeInput = {
   fullName: string
-  jobTitle: string
-  // Bỏ trống = BE tự đoán nhóm theo chức danh (từ khóa khai trong danh mục nhóm nghiệp vụ).
   employeeGroupIds?: string[]
   teamId: string
   leaderEmployeeId?: string | null
@@ -118,7 +117,6 @@ export async function createEmployee(input: CreateEmployeeInput) {
 
 export type UpdateEmployeeInput = {
   fullName?: string
-  jobTitle?: string
   employeeGroupIds?: string[]
   teamId?: string
   leaderEmployeeId?: string | null

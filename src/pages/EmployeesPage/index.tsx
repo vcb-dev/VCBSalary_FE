@@ -39,6 +39,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -1127,60 +1128,88 @@ function DeleteEmployeeGroupButton({ group }: { group: EmployeeGroup }) {
 }
 
 /**
- * Chọn nhóm nghiệp vụ cho một nhân sự — lọc theo phòng ban của team đang chọn trong form, cộng
- * các nhóm dùng chung. Chưa chọn team thì chưa biết phòng ban nên chưa hiện nhóm nào.
+ * Nhóm nghiệp vụ chọn được cho nhân sự: nhóm của phòng ban thuộc team đang chọn, cộng các nhóm
+ * dùng chung. Nhóm đã ngừng dùng chỉ hiện khi nhân sự đang có sẵn để lưu lại không làm mất.
  */
-function EmployeeGroupsField({
-  value,
-  onChange,
-  departmentId,
-}: {
-  value: string[]
-  onChange: (value: string[]) => void
-  departmentId: string | null
-}) {
+function useEmployeeGroupOptions(departmentId: string | null, selectedIds: string[]) {
   const groupsQuery = useQuery({
     queryKey: ORG_KEYS.employeeGroups,
     queryFn: () => listEmployeeGroups(),
   })
-  const groups = groupsQuery.data ?? []
-  const availableGroups = groups.filter(
+  const loaded = groupsQuery.data !== undefined
+  const options = (groupsQuery.data ?? []).filter(
     (group) =>
-      (group.status === 'ACTIVE' || value.includes(group.id)) &&
+      (group.status === 'ACTIVE' || selectedIds.includes(group.id)) &&
       (group.departmentId === null || group.departmentId === departmentId),
   )
+  // Đổi sang team phòng ban khác thì nhóm cũ không còn hợp lệ, bỏ đi khi lưu thay vì để BE từ
+  // chối. Chưa tải được danh mục thì giữ nguyên, nếu không lần lưu sẽ xoá sạch nhóm đang có.
+  const validIds = loaded
+    ? selectedIds.filter((id) => options.some((group) => group.id === id))
+    : selectedIds
+  return { options, loaded, validIds }
+}
+
+type EmployeeGroupOptions = ReturnType<typeof useEmployeeGroupOptions>
+
+function EmployeeGroupsField({
+  value,
+  onChange,
+  groupOptions,
+  hasTeam,
+}: {
+  value: string[]
+  onChange: (value: string[]) => void
+  groupOptions: EmployeeGroupOptions
+  hasTeam: boolean
+}) {
+  const { options, loaded } = groupOptions
+  const selected = options.filter((group) => value.includes(group.id))
+  const placeholder = !hasTeam
+    ? 'Chọn team trước'
+    : !loaded
+      ? 'Đang tải…'
+      : options.length === 0
+        ? 'Phòng ban chưa có nhóm'
+        : 'Chọn nhóm nghiệp vụ'
 
   function toggle(groupId: string) {
     onChange(value.includes(groupId) ? value.filter((item) => item !== groupId) : [...value, groupId])
   }
 
   return (
-    <fieldset className="grid gap-2 rounded-xl border bg-muted/40 p-3">
-      <legend className="px-1 text-sm font-semibold">Nhóm nghiệp vụ để tự gán KPI</legend>
-      <p className="text-xs text-muted-foreground">
-        Một nhân sự có thể thuộc nhiều nhóm. Để trống khi tạo mới thì hệ thống tự đoán theo chức danh.
-      </p>
-      {groupsQuery.isLoading ? <p className="text-sm text-muted-foreground">Đang tải nhóm nghiệp vụ…</p> : null}
-      {!groupsQuery.isLoading && !departmentId ? (
-        <p className="text-sm text-muted-foreground">Chọn team trước để biết nhóm nghiệp vụ nào dùng được.</p>
-      ) : null}
-      {!groupsQuery.isLoading && departmentId && availableGroups.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Phòng ban của team này chưa có nhóm nghiệp vụ nào.</p>
-      ) : null}
-      <div className="flex flex-wrap gap-2">
-        {availableGroups.map((group) => (
-          <label key={group.id} className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium">
-            <input
-              type="checkbox"
-              className="size-4 accent-primary"
+    <div className="grid gap-1.5">
+      <Label htmlFor="emp-groups">Nhóm nghiệp vụ</Label>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            id="emp-groups"
+            type="button"
+            disabled={!hasTeam || options.length === 0}
+            className="flex h-9 w-full min-w-0 items-center justify-between gap-2 rounded-lg border border-input bg-card px-3 py-2 text-sm shadow-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <span className={`min-w-0 flex-1 truncate text-left ${selected.length > 0 ? '' : 'text-muted-foreground'}`}>
+              {selected.length > 0 ? selected.map((group) => group.name).join(', ') : placeholder}
+            </span>
+            <ChevronDown className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start">
+          <DropdownMenuLabel>Chọn được nhiều nhóm</DropdownMenuLabel>
+          {options.map((group) => (
+            <DropdownMenuCheckboxItem
+              key={group.id}
               checked={value.includes(group.id)}
-              onChange={() => toggle(group.id)}
-            />
-            {group.name}
-          </label>
-        ))}
-      </div>
-    </fieldset>
+              onCheckedChange={() => toggle(group.id)}
+              // Giữ menu mở để chọn tiếp nhóm khác.
+              onSelect={(event) => event.preventDefault()}
+            >
+              {group.name}
+            </DropdownMenuCheckboxItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   )
 }
 
@@ -1265,7 +1294,7 @@ function DepartmentSection({
               icon={FolderTree}
               title="Phòng ban này chưa có team"
               description="Tạo team để xếp nhân sự vào và bắt đầu theo dõi dữ liệu theo phạm vi team."
-              action={canManage ? <CreateTeamDialog departments={departments} /> : undefined}
+              action={canManage ? <CreateTeamDialog departments={departments} defaultDepartmentId={department.id} /> : undefined}
             />
           ) : (
             <div className="divide-y divide-border px-2 pb-2 sm:px-3 sm:pb-3">
@@ -1329,6 +1358,9 @@ function TeamListItem({
 }) {
   const activeMembers = members.filter((member) => member.employmentStatus === 'ACTIVE').length
   const panelId = `team-members-${team.id}`
+  const addMember = canManage ? (
+    <CreateEmployeeDialog team={team} teams={teamOptions} employees={employees} canManageUsers={canManageUsers} />
+  ) : null
 
   return (
     <article className="overflow-hidden">
@@ -1385,16 +1417,20 @@ function TeamListItem({
               description={isFiltering
                 ? 'Hãy nới bộ lọc để xem toàn bộ thành viên của team.'
                 : 'Thêm nhân sự vào team để tính được lương và phạm vi dữ liệu theo team.'}
+              action={isFiltering ? undefined : addMember}
             />
           ) : (
-            <TeamMemberList
-              members={members}
-              canManage={canManage}
-              canManageUsers={canManageUsers}
-              orphanUsers={orphanUsers}
-              teamOptions={teamOptions}
-              employees={employees}
-            />
+            <>
+              {addMember ? <div className="mb-3 flex justify-end">{addMember}</div> : null}
+              <TeamMemberList
+                members={members}
+                canManage={canManage}
+                canManageUsers={canManageUsers}
+                orphanUsers={orphanUsers}
+                teamOptions={teamOptions}
+                employees={employees}
+              />
+            </>
           )}
         </div>
       ) : null}
@@ -1519,7 +1555,6 @@ function TeamMemberList({
 
 type EmployeeFormValue = {
   fullName: string
-  jobTitle: string
   employeeGroupIds: string[]
   teamId: string
   leaderEmployeeId: string
@@ -1532,7 +1567,6 @@ type EmployeeFormValue = {
 function emptyEmployeeForm(): EmployeeFormValue {
   return {
     fullName: '',
-    jobTitle: '',
     employeeGroupIds: [],
     teamId: '',
     leaderEmployeeId: NONE,
@@ -1548,12 +1582,14 @@ function EmployeeFormFields({
   onChange,
   teams,
   employees,
+  groupOptions,
   excludeId,
 }: {
   value: EmployeeFormValue
   onChange: (patch: Partial<EmployeeFormValue>) => void
   teams: Team[]
   employees: Employee[]
+  groupOptions: EmployeeGroupOptions
   excludeId?: string
 }) {
   const peopleOptions = assignableEmployees(employees, excludeId, [
@@ -1561,18 +1597,11 @@ function EmployeeFormFields({
     value.managerEmployeeId,
   ])
 
+  // Team đứng trước nhóm nghiệp vụ vì danh sách nhóm phụ thuộc phòng ban của team.
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2">
         <LabeledInput id="emp-fullname" label="Họ và tên" value={value.fullName} onChange={(v) => onChange({ fullName: v })} />
-        <LabeledInput id="emp-jobtitle" label="Chức danh" value={value.jobTitle} onChange={(v) => onChange({ jobTitle: v })} />
-      </div>
-      <EmployeeGroupsField
-        value={value.employeeGroupIds}
-        onChange={(employeeGroupIds) => onChange({ employeeGroupIds })}
-        departmentId={teams.find((team) => team.id === value.teamId)?.departmentId ?? null}
-      />
-      <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-1.5">
           <Label>Team</Label>
           <Select value={value.teamId} onValueChange={(v) => onChange({ teamId: v })}>
@@ -1588,6 +1617,14 @@ function EmployeeFormFields({
             </SelectContent>
           </Select>
         </div>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <EmployeeGroupsField
+          value={value.employeeGroupIds}
+          onChange={(employeeGroupIds) => onChange({ employeeGroupIds })}
+          groupOptions={groupOptions}
+          hasTeam={Boolean(value.teamId)}
+        />
         <div className="grid gap-1.5">
           <Label>Trạng thái</Label>
           <Select
@@ -1665,10 +1702,13 @@ function CreateEmployeeDialog({
   teams,
   employees,
   canManageUsers,
+  team,
 }: {
   teams: Team[]
   employees: Employee[]
   canManageUsers: boolean
+  /** Mở từ panel của một team: điền sẵn team (kéo theo phòng ban) và leader của team đó. */
+  team?: Team
 }) {
   const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
@@ -1680,7 +1720,11 @@ function CreateEmployeeDialog({
 
   function handleOpenChange(next: boolean) {
     if (next) {
-      setForm(emptyEmployeeForm())
+      setForm(
+        team
+          ? { ...emptyEmployeeForm(), teamId: team.id, leaderEmployeeId: findTeamLeaderId(team.id, employees) ?? NONE }
+          : emptyEmployeeForm(),
+      )
       setCreateAccount(false)
       setAccountEmail('')
       setAccountPassword('')
@@ -1703,12 +1747,17 @@ function CreateEmployeeDialog({
     })
   }
 
+  const groupOptions = useEmployeeGroupOptions(
+    teams.find((item) => item.id === form.teamId)?.departmentId ?? null,
+    form.employeeGroupIds,
+  )
+
   const createMutation = useMutation({
     mutationFn: async () => {
+      // Không gửi chức danh: BE lấy tên nhóm nghiệp vụ làm chức danh.
       const employee = await createEmployee({
         fullName: form.fullName.trim(),
-        jobTitle: form.jobTitle.trim(),
-        employeeGroupIds: form.employeeGroupIds,
+        employeeGroupIds: groupOptions.validIds,
         teamId: form.teamId,
         leaderEmployeeId: form.leaderEmployeeId === NONE ? undefined : form.leaderEmployeeId,
         managerEmployeeId: form.managerEmployeeId === NONE ? undefined : form.managerEmployeeId,
@@ -1758,12 +1807,17 @@ function CreateEmployeeDialog({
 
   function submit() {
     setFormError(null)
-    if (!form.fullName.trim() || !form.jobTitle.trim()) {
-      setFormError('Nhập đủ họ tên và chức danh.')
+    if (!form.fullName.trim()) {
+      setFormError('Nhập họ và tên.')
       return
     }
     if (!form.teamId) {
       setFormError('Chọn team cho nhân sự.')
+      return
+    }
+    // Không có nhóm thì nhân sự không được tự gán KPI và tài khoản tạo kèm không có vai trò.
+    if (groupOptions.loaded && groupOptions.options.length > 0 && groupOptions.validIds.length === 0) {
+      setFormError('Chọn nhóm nghiệp vụ cho nhân sự.')
       return
     }
     if (createAccount) {
@@ -1782,15 +1836,26 @@ function CreateEmployeeDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button>
-          <Plus className="size-4" />
-          Thêm nhân sự
-        </Button>
+        {team ? (
+          <Button variant="outline" size="sm">
+            <Plus className="size-4" />
+            Thêm nhân sự vào team
+          </Button>
+        ) : (
+          <Button>
+            <Plus className="size-4" />
+            Thêm nhân sự
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="flex max-h-[calc(100svh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
         <DialogHeader className="shrink-0 border-b px-5 py-5 pr-14">
           <DialogTitle>Tạo hồ sơ nhân sự</DialogTitle>
-          <DialogDescription>Hồ sơ mới được ghi vào cơ sở dữ liệu tổ chức của hệ thống.</DialogDescription>
+          <DialogDescription>
+            {team
+              ? `Đã điền sẵn ${team.department.name} · ${team.name}. Vẫn đổi được team bên dưới.`
+              : 'Hồ sơ mới được ghi vào cơ sở dữ liệu tổ chức của hệ thống.'}
+          </DialogDescription>
         </DialogHeader>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
@@ -1800,6 +1865,7 @@ function CreateEmployeeDialog({
               onChange={updateForm}
               teams={teams}
               employees={employees}
+              groupOptions={groupOptions}
             />
 
             {canManageUsers && (
@@ -2062,7 +2128,6 @@ function EditEmployeeDialog({
     if (next) {
       setForm({
         fullName: employee.fullName,
-        jobTitle: employee.jobTitle,
         employeeGroupIds: employee.employeeGroups.map((group) => group.id),
         teamId: employee.teamId,
         leaderEmployeeId: employee.leaderEmployeeId ?? NONE,
@@ -2076,12 +2141,16 @@ function EditEmployeeDialog({
     setOpen(next)
   }
 
+  const groupOptions = useEmployeeGroupOptions(
+    teams.find((team) => team.id === form.teamId)?.departmentId ?? null,
+    form.employeeGroupIds,
+  )
+
   const saveMutation = useMutation({
     mutationFn: () =>
       updateEmployee(employee.id, {
         fullName: form.fullName.trim(),
-        jobTitle: form.jobTitle.trim(),
-        employeeGroupIds: form.employeeGroupIds,
+        employeeGroupIds: groupOptions.validIds,
         teamId: form.teamId,
         leaderEmployeeId: form.leaderEmployeeId === NONE ? null : form.leaderEmployeeId,
         managerEmployeeId: form.managerEmployeeId === NONE ? null : form.managerEmployeeId,
@@ -2099,12 +2168,16 @@ function EditEmployeeDialog({
 
   function submit() {
     setFormError(null)
-    if (!form.fullName.trim() || !form.jobTitle.trim()) {
-      setFormError('Họ tên và chức danh không được để trống.')
+    if (!form.fullName.trim()) {
+      setFormError('Họ tên không được để trống.')
       return
     }
     if (!form.teamId) {
       setFormError('Chọn team cho nhân sự.')
+      return
+    }
+    if (groupOptions.loaded && groupOptions.options.length > 0 && groupOptions.validIds.length === 0) {
+      setFormError('Chọn nhóm nghiệp vụ cho nhân sự.')
       return
     }
     saveMutation.mutate()
@@ -2130,6 +2203,7 @@ function EditEmployeeDialog({
               onChange={(patch) => setForm((current) => ({ ...current, ...patch }))}
               teams={teams}
               employees={employees}
+              groupOptions={groupOptions}
               excludeId={employee.id}
             />
             {formError && (
@@ -2556,7 +2630,7 @@ function FormError({ title, message }: { title: string; message: string }) {
   )
 }
 
-function CreateTeamDialog({ departments }: { departments: Department[] }) {
+function CreateTeamDialog({ departments, defaultDepartmentId }: { departments: Department[]; defaultDepartmentId?: string }) {
   const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
@@ -2567,7 +2641,7 @@ function CreateTeamDialog({ departments }: { departments: Department[] }) {
   function handleOpenChange(next: boolean) {
     if (next) {
       setName('')
-      setDepartmentId(departments.find((department) => department.status === 'ACTIVE')?.id ?? '')
+      setDepartmentId(defaultDepartmentId ?? departments.find((department) => department.status === 'ACTIVE')?.id ?? '')
       setStatus('ACTIVE')
       setFormError(null)
     }
