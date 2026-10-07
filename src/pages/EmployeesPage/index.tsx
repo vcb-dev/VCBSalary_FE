@@ -2252,7 +2252,8 @@ function LinkAccountDialog({ employee, orphanUsers }: { employee: Employee; orph
           Tài khoản
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      {/* Đã gắn thì nút chính là "Gỡ liên kết" (chạy ngay, không hỏi lại) nên không cho Enter kích hoạt. */}
+      <DialogContent confirmOnEnter={!employee.user}>
         <DialogHeader>
           <DialogTitle>Tài khoản đăng nhập · {employee.fullName}</DialogTitle>
           <DialogDescription>

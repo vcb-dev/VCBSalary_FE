@@ -667,7 +667,7 @@ function SalaryGoalDialog({ selected, onClose }: { selected: { id: string; emplo
 function SalaryDetailDialog({ id, canApprove, canCreateRevision, canManageBonus, onClose, onSelectVersion, onAction }: { id: string | null; canApprove: boolean; canCreateRevision: boolean; canManageBonus: boolean; onClose: () => void; onSelectVersion: (id: string) => void; onAction: (type: 'approve' | 'revision', record: SalaryRecord, employeeName: string) => void }) {
   const query = useQuery({ queryKey: ['salary-record', id], queryFn: () => getSalaryBreakdown(id!), enabled: Boolean(id) })
   const record = query.data
-  return <Dialog open={Boolean(id)} onOpenChange={(open) => !open && onClose()}><DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-3xl">
+  return <Dialog open={Boolean(id)} onOpenChange={(open) => !open && onClose()}><DialogContent confirmOnEnter={false} className="max-h-[90svh] overflow-y-auto sm:max-w-3xl">
     <DialogHeader><DialogTitle>Chi tiết lương & thưởng</DialogTitle><DialogDescription>{record ? `${record.employeeName} · ${record.employeeCode} · Ruleset v${record.rewardRuleSetVersion}` : 'Đang tải snapshot bản tính'}</DialogDescription></DialogHeader>
     {query.isLoading ? <div className="space-y-3"><Skeleton className="h-20 w-full" /><Skeleton className="h-48 w-full" /></div> : query.isError || !record ? <ErrorCard onRetry={() => query.refetch()} /> : <SalaryBreakdownContent record={record} onSelectVersion={onSelectVersion} canManageBonus={canManageBonus} />}
     {record && ((canApprove && record.status === 'PENDING') || (canCreateRevision && record.status === 'LOCKED')) ? <DialogFooter>

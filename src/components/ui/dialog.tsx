@@ -47,13 +47,89 @@ function DialogOverlay({
   )
 }
 
+// Nút chính của dialog = nút default/destructive cuối cùng trong DialogFooter
+// (nút Hủy/Đóng luôn là outline nên không bị chọn).
+const PRIMARY_ACTION_SELECTOR =
+  '[data-slot="dialog-footer"] button:is([data-variant="default"], [data-variant="destructive"])'
+
+const NON_TEXT_INPUT_TYPES = new Set([
+  "button", "submit", "reset", "checkbox", "radio", "file", "range", "color", "hidden", "image",
+])
+
+function findPrimaryAction(content: HTMLElement) {
+  return Array.from(content.querySelectorAll<HTMLButtonElement>(PRIMARY_ACTION_SELECTOR)).at(-1)
+}
+
+function isTextField(element: Element): element is HTMLInputElement | HTMLTextAreaElement {
+  if (element instanceof HTMLTextAreaElement) return true
+  return element instanceof HTMLInputElement && !NON_TEXT_INPUT_TYPES.has(element.type)
+}
+
+// Ô tìm kiếm lọc danh sách ngay khi gõ, Enter ở đó không có nghĩa là lưu form.
+function isSearchField(element: HTMLInputElement | HTMLTextAreaElement) {
+  return element.type === "search" || element.enterKeyHint === "search"
+}
+
+function confirmOnEnterKey(event: React.KeyboardEvent<HTMLDivElement>) {
+  if (event.key !== "Enter" || event.defaultPrevented || event.repeat) return
+  // Enter lúc bộ gõ tiếng Việt đang ghép chữ chỉ để chốt chữ.
+  if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return
+  if (event.shiftKey || event.altKey) return
+
+  const content = event.currentTarget
+  const target = event.target
+  // Select/Popover render qua portal nhưng sự kiện vẫn nổi bọt theo cây React.
+  if (!(target instanceof HTMLElement) || !content.contains(target)) return
+  // Nút, select, checkbox... giữ hành vi Enter riêng; chỉ nhận từ ô nhập hoặc chính khung dialog.
+  if (target !== content) {
+    if (!isTextField(target) || isSearchField(target)) return
+    if (target instanceof HTMLTextAreaElement && !event.ctrlKey && !event.metaKey) return
+    // Ô nằm trong <form> thì trình duyệt tự submit.
+    if (target instanceof HTMLInputElement && target.form) return
+  }
+
+  const action = findPrimaryAction(content)
+  if (!action) return
+  event.preventDefault()
+  if (!action.disabled) action.click()
+}
+
+// Mặc định Radix focus phần tử đầu tiên, với dialog xác nhận đó là nút Hủy nên Enter sẽ hủy.
+// Dialog có nút chính thì focus ô nhập đầu tiên, không có ô nhập thì focus khung dialog.
+function focusForEnterConfirm(event: Event) {
+  const content = event.currentTarget
+  if (!(content instanceof HTMLElement) || !findPrimaryAction(content)) return
+  event.preventDefault()
+  const field = Array.from(
+    content.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>("input, textarea")
+  ).find(
+    (element) =>
+      isTextField(element) &&
+      !isSearchField(element) &&
+      !element.disabled &&
+      !element.readOnly &&
+      element.getClientRects().length > 0
+  )
+  if (!field) {
+    content.focus({ preventScroll: true })
+    return
+  }
+  field.focus({ preventScroll: true })
+  if (field instanceof HTMLInputElement) field.select()
+}
+
 function DialogContent({
   className,
   children,
   showCloseButton = true,
+  confirmOnEnter = true,
+  onKeyDown,
+  onOpenAutoFocus,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
+  /** Enter trong ô nhập (Ctrl/⌘+Enter với textarea) bấm nút chính ở DialogFooter. */
+  confirmOnEnter?: boolean
 }) {
   return (
     <DialogPortal>
@@ -64,6 +140,14 @@ function DialogContent({
         "fixed top-1/2 left-1/2 z-50 flex w-full max-w-[calc(100%-2rem)] max-h-[calc(100dvh-3rem)] sm:max-h-[calc(100dvh-8rem)] -translate-x-1/2 -translate-y-1/2 flex-col gap-5 overflow-y-auto overscroll-contain rounded-2xl border border-border bg-popover p-4 text-sm text-popover-foreground shadow-2xl shadow-slate-950/15 outline-none sm:max-w-xl sm:p-5",
           className
         )}
+        onKeyDown={(event) => {
+          onKeyDown?.(event)
+          if (confirmOnEnter) confirmOnEnterKey(event)
+        }}
+        onOpenAutoFocus={(event) => {
+          onOpenAutoFocus?.(event)
+          if (confirmOnEnter && !event.defaultPrevented) focusForEnterConfirm(event)
+        }}
         {...props}
       >
         {children}

@@ -3216,6 +3216,7 @@ function KpiTeamSelector({
             value={teamSearch}
             onChange={(event) => setTeamSearch(event.target.value)}
             placeholder="Tìm team..."
+            enterKeyHint="search"
           />
         </div>
       ) : null}
