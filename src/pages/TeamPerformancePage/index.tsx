@@ -5,11 +5,13 @@ import {
   Filter, RefreshCw, Search, UsersRound, X,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import type { Paginated } from '@/api/access-control'
 import { listPayrollPeriods, listPayrollPeriodYears } from '@/api/payroll-periods'
-import { listRevenue, type EmployeeRevenue } from '@/api/revenue'
-import { listSalaryRecords, type SalaryListItem } from '@/api/salary'
-import { listTraffic, type TrafficListItem } from '@/api/traffic'
+import {
+  getMyTeamPerformance,
+  getTeamPerformance,
+  type TeamPerformanceGoalSummary,
+  type TeamPerformanceMember,
+} from '@/api/team-performance'
 import { useAuth } from '@/auth/AuthContext'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { ErrorState } from '@/components/shared/ErrorState'
@@ -38,8 +40,11 @@ type MemberRow = {
   teamName: string | null
   revenue: string | null
   views: string | null
-  traffic: TrafficListItem | null
-  salary: SalaryListItem['salaryRecord']
+  traffic: TeamPerformanceMember['traffic']
+  salary: TeamPerformanceMember['salary']
+  kpi: TeamPerformanceGoalSummary | null
+  okr: TeamPerformanceGoalSummary | null
+  isComplete: boolean
 }
 
 type SortKey = 'name' | 'revenue' | 'views'
@@ -50,17 +55,13 @@ export function TeamPerformancePage() {
   const chosenYear = selectedPeriod?.payrollYear ?? new Date().getFullYear()
   const permissions = user?.permissions ?? []
   const can = (permission: string) => permissions.includes(permission)
-  const canKpi = can('kpi.view_team') || can('kpi.view_all')
-  const canOkr = can('okr.view_team') || can('okr.view_all')
-  const canTraffic = can('traffic.view_team') || can('traffic.view_all')
-  const canRevenue = can('revenue.view_team') || can('revenue.view_all')
-  const canSalary = can('salary.view_team') || can('salary.view_all')
+  const canRevenueByPermission = can('revenue.view_team') || can('revenue.view_all')
   const canExport = can('report.export')
   const [teamId, setTeamId] = useState('all')
   const [searchInput, setSearchInput] = useState('')
   const search = useDebouncedValue(searchInput.trim().toLowerCase(), 250)
   const [onlyIncomplete, setOnlyIncomplete] = useState(false)
-  const [sortKey, setSortKey] = useState<SortKey>(canRevenue ? 'revenue' : 'name')
+  const [sortKey, setSortKey] = useState<SortKey>(canRevenueByPermission ? 'revenue' : 'name')
   const [sortDescending, setSortDescending] = useState(true)
 
   const periodsQuery = useQuery({ queryKey: ['payroll-periods', 'team-performance', chosenYear], queryFn: () => listPayrollPeriods({ year: chosenYear, pageSize: 12 }) })
@@ -77,46 +78,47 @@ export function TeamPerformancePage() {
     if (nextPeriod) selectPeriod(nextPeriod.id)
   }
 
-  const salaryQuery = useQuery({
-    queryKey: ['salary-records', periodId, 'team-performance'],
-    queryFn: () => loadAllPages((page) => listSalaryRecords(periodId, { page, pageSize: 100 })),
-    enabled: canSalary && Boolean(periodId),
-  })
-  const revenueQuery = useQuery({
-    queryKey: ['revenue', periodId, 'team-performance'],
-    queryFn: () => loadAllPages((page) => listRevenue(periodId, { page, pageSize: 100 })),
-    enabled: canRevenue && Boolean(periodId),
-  })
-  const trafficQuery = useQuery({
-    queryKey: ['traffic', periodId, 'team-performance'],
-    queryFn: () => loadAllPages((page) => listTraffic(periodId, { page, pageSize: 100 })),
-    enabled: canTraffic && Boolean(periodId),
+  function changePeriod(nextPeriodId: string) {
+    setTeamId('all')
+    selectPeriod(nextPeriodId)
+  }
+
+  const performanceQuery = useQuery({
+    queryKey: ['team-performance', periodId, teamId],
+    queryFn: () => teamId === 'all'
+      ? getMyTeamPerformance(periodId)
+      : getTeamPerformance(periodId, teamId),
+    enabled: Boolean(periodId),
   })
 
-  const allMembers = useMemo(
-    () => mergeMembers(salaryQuery.data ?? [], revenueQuery.data ?? [], trafficQuery.data ?? []),
-    [salaryQuery.data, revenueQuery.data, trafficQuery.data],
+  const performance = performanceQuery.data
+  const canKpi = performance?.capabilities.kpi ?? (can('kpi.view_team') || can('kpi.view_all'))
+  const canOkr = performance?.capabilities.okr ?? (can('okr.view_team') || can('okr.view_all'))
+  const canTraffic = performance?.capabilities.traffic ?? (can('traffic.view_team') || can('traffic.view_all'))
+  const canRevenue = performance?.capabilities.revenue ?? (can('revenue.view_team') || can('revenue.view_all'))
+  const canSalary = performance?.capabilities.salary ?? (can('salary.view_team') || can('salary.view_all'))
+  const members = useMemo(
+    () => (performance?.members ?? []).map(toMemberRow),
+    [performance?.members],
   )
-  const teams = Array.from(
-    new Map(allMembers.filter((item) => item.teamId).map((item) => [item.teamId!, item.teamName ?? 'Chưa đặt tên'])).entries(),
-  ).sort((a, b) => a[1].localeCompare(b[1], 'vi'))
-  const members = teamId === 'all' ? allMembers : allMembers.filter((item) => item.teamId === teamId)
-
-  const totalRevenue = members.reduce((sum, item) => sum + integerValue(item.revenue), 0n)
-  const acceptedViews = members.reduce((sum, item) => sum + integerValue(item.traffic?.acceptedViews ?? null), 0n)
-  const revenueReady = members.filter((item) => item.revenue !== null).length
-  const trafficReady = members.filter((item) => isTrafficComplete(item.traffic)).length
-  const salaryLocked = members.filter((item) => item.salary?.status === 'LOCKED').length
+  const teams = (performance?.teams ?? []).map((team) => [team.id, team.name] as const)
+  const summary = performance?.summary
+  const totalRevenue = integerValue(summary?.revenue.totalAmount)
+  const acceptedViews = integerValue(summary?.traffic.acceptedViews)
+  const revenueReady = summary?.revenue.readyCount ?? 0
+  const trafficReady = summary?.traffic.readyCount ?? 0
+  const salaryLocked = summary?.salary.lockedCount ?? 0
   const topRevenue = members.reduce((max, item) => (integerValue(item.revenue) > max ? integerValue(item.revenue) : max), 0n)
+  const allReady = members.length > 0 && members.every((member) => member.isComplete)
 
-  const loading = periodsQuery.isLoading || salaryQuery.isLoading || revenueQuery.isLoading || trafficQuery.isLoading
-  const refreshing = periodsQuery.isFetching || yearsQuery.isFetching || salaryQuery.isFetching || revenueQuery.isFetching || trafficQuery.isFetching
-  const hasError = periodsQuery.isError || yearsQuery.isError || salaryQuery.isError || revenueQuery.isError || trafficQuery.isError
+  const loading = periodsQuery.isLoading || performanceQuery.isLoading
+  const refreshing = periodsQuery.isFetching || yearsQuery.isFetching || performanceQuery.isFetching
+  const hasError = periodsQuery.isError || yearsQuery.isError || performanceQuery.isError
 
   const isFiltering = search !== '' || onlyIncomplete
   const visibleMembers = useMemo(() => {
     const filtered = members.filter((item) => {
-      if (onlyIncomplete && isMemberComplete(item, { canRevenue, canTraffic, canSalary })) return false
+      if (onlyIncomplete && item.isComplete) return false
       if (!search) return true
       return item.name.toLowerCase().includes(search)
         || item.employeeCode.toLowerCase().includes(search)
@@ -131,7 +133,7 @@ export function TeamPerformancePage() {
       if (left === right) return a.name.localeCompare(b.name, 'vi')
       return left > right ? direction : -direction
     })
-  }, [members, search, onlyIncomplete, sortKey, sortDescending, canRevenue, canTraffic, canSalary])
+  }, [members, search, onlyIncomplete, sortKey, sortDescending])
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) {
@@ -145,9 +147,7 @@ export function TeamPerformancePage() {
   function refreshAll() {
     void periodsQuery.refetch()
     void yearsQuery.refetch()
-    void salaryQuery.refetch()
-    void revenueQuery.refetch()
-    void trafficQuery.refetch()
+    void performanceQuery.refetch()
   }
 
   function clearFilters() {
@@ -157,9 +157,10 @@ export function TeamPerformancePage() {
 
   function exportCsv() {
     downloadCsv(`hieu-suat-team-${currentPeriod?.code ?? 'chua-co-ky'}.csv`, [
-      ['Mã nhân sự', 'Nhân sự', 'Chức danh', 'Team', 'Doanh thu', 'Views hợp lệ', 'Traffic', 'Lương'],
+      ['Mã nhân sự', 'Nhân sự', 'Chức danh', 'Team', 'KPI đạt', 'OKR đạt', 'Doanh thu', 'Views hợp lệ', 'Traffic', 'Lương'],
       ...visibleMembers.map((item) => [
         item.employeeCode, item.name, item.title, item.teamName ?? '',
+        goalExportValue(item.kpi), goalExportValue(item.okr),
         item.revenue ?? '', item.traffic?.acceptedViews ?? '',
         trafficLabel(item.traffic), salaryLabel(item.salary),
       ]),
@@ -192,7 +193,7 @@ export function TeamPerformancePage() {
           <SelectTrigger className="w-full sm:w-30" aria-label="Chọn năm báo cáo"><SelectValue /></SelectTrigger>
           <SelectContent>{availableYears.map((year) => <SelectItem key={year} value={String(year)}>Năm {year}</SelectItem>)}</SelectContent>
         </Select>
-        <Select value={periodId || undefined} onValueChange={selectPeriod}>
+        <Select value={periodId || undefined} onValueChange={changePeriod}>
           <SelectTrigger className="w-full sm:w-46" aria-label="Chọn kỳ lương"><SelectValue placeholder="Chọn kỳ lương" /></SelectTrigger>
           <SelectContent>
             {periods.map((period) => <SelectItem key={period.id} value={period.id}>{period.name}</SelectItem>)}
@@ -212,7 +213,7 @@ export function TeamPerformancePage() {
 
       {hasError ? (
         <ErrorState
-          description="Một phần dữ liệu hiệu suất chưa tải được. Các chỉ số bên dưới có thể chưa đầy đủ."
+          description="Không tải được dữ liệu hiệu suất đã tổng hợp. Hãy thử làm mới hoặc chọn kỳ khác."
           onRetry={refreshAll}
           retrying={refreshing}
         />
@@ -224,36 +225,36 @@ export function TeamPerformancePage() {
           tone="info"
           label="Thành viên"
           value={formatNumber(members.length)}
-          note="Trong phạm vi dữ liệu được cấp"
+          note="Không tính bản thân Leader của team"
           loading={loading}
         />
         {canRevenue ? (
           <MetricCard
             icon={BarChart3}
-            tone={revenueReady === members.length && members.length > 0 ? 'success' : 'warning'}
+            tone={revenueReady === summary?.revenue.eligibleMemberCount && revenueReady > 0 ? 'success' : 'warning'}
             label="Doanh thu team"
             value={formatCompactMoney(Number(totalRevenue))}
             valueTitle={formatMoney(Number(totalRevenue))}
-            note={`${formatNumber(revenueReady)}/${formatNumber(members.length)} nhân sự đã có số liệu`}
+            note={`${formatNumber(revenueReady)}/${formatNumber(summary?.revenue.eligibleMemberCount ?? 0)} nhân sự đã có số liệu`}
             loading={loading}
           />
         ) : null}
         {canTraffic ? (
           <MetricCard
             icon={Eye}
-            tone={trafficReady === members.length && members.length > 0 ? 'success' : 'warning'}
+            tone={trafficReady === summary?.traffic.eligibleMemberCount && trafficReady > 0 ? 'success' : 'warning'}
             label="Traffic hợp lệ"
             value={formatNumber(Number(acceptedViews))}
-            note={`${formatNumber(trafficReady)}/${formatNumber(members.length)} hồ sơ hoàn tất`}
+            note={`${formatNumber(trafficReady)}/${formatNumber(summary?.traffic.eligibleMemberCount ?? 0)} hồ sơ hoàn tất`}
             loading={loading}
           />
         ) : null}
         {canSalary ? (
           <MetricCard
             icon={FileClock}
-            tone={salaryLocked === members.length && members.length > 0 ? 'success' : 'warning'}
+            tone={salaryLocked === summary?.salary.eligibleMemberCount && salaryLocked > 0 ? 'success' : 'warning'}
             label="Bảng lương đã khóa"
-            value={`${formatNumber(salaryLocked)} / ${formatNumber(members.length)}`}
+            value={`${formatNumber(salaryLocked)} / ${formatNumber(summary?.salary.eligibleMemberCount ?? 0)}`}
             note="Đã phê duyệt cuối"
             loading={loading}
           />
@@ -268,14 +269,14 @@ export function TeamPerformancePage() {
                 <h2 className="text-base font-semibold tracking-tight text-foreground">Mức độ sẵn sàng</h2>
                 <p className="mt-1 text-xs text-muted-foreground">Đủ dữ liệu để tính và khóa lương chưa</p>
               </div>
-              <StatusBadge tone={members.length > 0 && salaryLocked === members.length ? 'success' : 'warning'}>
-                {members.length > 0 && salaryLocked === members.length ? 'Đã sẵn sàng' : 'Còn thiếu dữ liệu'}
+              <StatusBadge tone={allReady ? 'success' : 'warning'}>
+                {allReady ? 'Đã sẵn sàng' : 'Còn thiếu dữ liệu'}
               </StatusBadge>
             </div>
             <div className="mt-5 space-y-4">
-              {canRevenue ? <Readiness label="Doanh thu" ready={revenueReady} total={members.length} /> : null}
-              {canTraffic ? <Readiness label="Traffic" ready={trafficReady} total={members.length} /> : null}
-              {canSalary ? <Readiness label="Bảng lương đã khóa" ready={salaryLocked} total={members.length} /> : null}
+              {canRevenue ? <Readiness label="Doanh thu" ready={revenueReady} total={summary?.revenue.eligibleMemberCount ?? 0} /> : null}
+              {canTraffic ? <Readiness label="Traffic" ready={trafficReady} total={summary?.traffic.eligibleMemberCount ?? 0} /> : null}
+              {canSalary ? <Readiness label="Bảng lương đã khóa" ready={salaryLocked} total={summary?.salary.eligibleMemberCount ?? 0} /> : null}
             </div>
           </CardContent>
         </Card>
@@ -283,16 +284,17 @@ export function TeamPerformancePage() {
         <Card className="py-0 xl:col-span-2">
           <CardContent className="flex h-full flex-col p-5">
             <h2 className="text-base font-semibold tracking-tight text-foreground">KPI &amp; OKR</h2>
-            <p className="mt-1 text-xs text-muted-foreground">Chi tiết hiệu suất từng người</p>
-            <p className="mt-3 text-sm leading-6 text-muted-foreground">
-              KPI và OKR được xét theo từng đầu mục. Mở màn KPI &amp; OKR để xem tiến độ và trạng thái duyệt hiện thời của từng người.
-            </p>
+            <p className="mt-1 text-xs text-muted-foreground">Tổng hợp theo đầu mục đã được duyệt</p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+              {canKpi ? <GoalOverview label="Nhóm KPI" summary={summary?.kpi} /> : null}
+              {canOkr ? <GoalOverview label="OKR" summary={summary?.okr} /> : null}
+            </div>
             <p className="mt-3 text-xs leading-5 text-muted-foreground">
-              Màn này chỉ tổng hợp dữ liệu thành viên trong phạm vi được cấp — hệ thống không phát sinh khoản thưởng riêng cho Leader.
+              Tiến độ trung bình chỉ là chỉ số dashboard, không dùng để tính lương. Hệ thống không phát sinh thưởng hiệu suất team cho Leader.
             </p>
             {canKpi || canOkr ? (
               <Button asChild variant="outline" className="mt-auto w-full">
-                <Link to="/kpi-okr">Mở KPI &amp; OKR <ChevronRight className="size-4" /></Link>
+                <Link to="/kpi-okr">Mở KPI &amp; OKR <ChevronRight className="size-4" aria-hidden="true" /></Link>
               </Button>
             ) : null}
           </CardContent>
@@ -385,7 +387,7 @@ function MembersTable({
                   aria-label="Xoá từ khoá tìm kiếm"
                   className="absolute top-1/2 right-2 grid size-6 -translate-y-1/2 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >
-                  <X className="size-4" />
+                  <X className="size-4" aria-hidden="true" />
                 </button>
               ) : null}
             </div>
@@ -410,7 +412,7 @@ function MembersTable({
               ? 'Doanh thu, traffic và bảng lương của mọi thành viên trong phạm vi đều đã đủ.'
               : isFiltering ? 'Thử từ khoá khác hoặc bỏ bộ lọc để xem toàn bộ danh sách.'
                 : 'Chọn kỳ lương khác, hoặc kiểm tra lại snapshot nhân sự của kỳ này.'}
-            action={isFiltering ? <Button variant="outline" onClick={onClearFilters}><X className="size-4" />Xoá bộ lọc</Button> : undefined}
+            action={isFiltering ? <Button variant="outline" onClick={onClearFilters}><X className="size-4" aria-hidden="true" />Xoá bộ lọc</Button> : undefined}
           />
         ) : (
           <div className="overflow-x-auto">
@@ -421,6 +423,8 @@ function MembersTable({
                     <SortButton label="Nhân sự" active={sortKey === 'name'} descending={sortDescending} onClick={() => onSort('name')} />
                   </TableHead>
                   <TableHead>Team</TableHead>
+                  {canKpi ? <TableHead>KPI</TableHead> : null}
+                  {canOkr ? <TableHead>OKR</TableHead> : null}
                   {canRevenue ? (
                     <TableHead className="text-right">
                       <SortButton label="Doanh thu" align="right" active={sortKey === 'revenue'} descending={sortDescending} onClick={() => onSort('revenue')} />
@@ -449,6 +453,8 @@ function MembersTable({
                         <span className="text-xs text-muted-foreground">{item.employeeCode} · {item.title}</span>
                       </TableCell>
                       <TableCell>{item.teamName ?? '—'}</TableCell>
+                      {canKpi ? <TableCell><GoalStatus summary={item.kpi} /></TableCell> : null}
+                      {canOkr ? <TableCell><GoalStatus summary={item.okr} /></TableCell> : null}
                       {canRevenue ? (
                         <TableCell className="text-right">
                           {item.revenue === null ? (
@@ -535,30 +541,61 @@ function Readiness({ label, ready, total }: { label: string; ready: number; tota
   )
 }
 
-function mergeMembers(salaries: SalaryListItem[], revenues: EmployeeRevenue[], traffic: TrafficListItem[]) {
-  const rows = new Map<string, MemberRow>()
-  const ensure = (source: { employeeId: string; employeeCode: string; employeeName: string; jobTitle: string; teamId: string | null; teamName: string | null }) => {
-    const existing = rows.get(source.employeeId)
-    if (existing) return existing
-    const row: MemberRow = {
-      employeeId: source.employeeId, employeeCode: source.employeeCode, name: source.employeeName,
-      title: source.jobTitle, teamId: source.teamId, teamName: source.teamName,
-      revenue: null, views: null, traffic: null, salary: null,
-    }
-    rows.set(source.employeeId, row)
-    return row
-  }
-  salaries.forEach((item) => { ensure(item).salary = item.salaryRecord })
-  revenues.forEach((item) => { ensure(item).revenue = item.officialRevenueAmount })
-  traffic.forEach((item) => { const row = ensure(item); row.traffic = item; row.views = item.acceptedViews })
-  return Array.from(rows.values()).sort((a, b) => a.name.localeCompare(b.name, 'vi'))
+function GoalOverview({ label, summary }: { label: string; summary: TeamPerformanceGoalSummary | undefined }) {
+  const total = summary?.totalCount ?? 0
+  const achieved = summary?.achievedCount ?? 0
+  const average = summary?.averageProgressPercent
+  return (
+    <div className="rounded-xl border bg-muted/35 p-3">
+      <div className="flex items-center justify-between gap-3">
+        <strong className="text-sm font-semibold">{label}</strong>
+        <StatusBadge tone={total > 0 && achieved === total ? 'success' : 'warning'}>
+          {formatNumber(achieved)}/{formatNumber(total)} đạt
+        </StatusBadge>
+      </div>
+      <p className="mt-2 text-xs text-muted-foreground">
+        {formatNumber(summary?.notAchievedCount ?? 0)} chưa đạt · {formatNumber(summary?.pendingCount ?? 0)} chờ duyệt
+      </p>
+      <p className="mt-1 text-xs font-medium tabular-nums text-foreground">
+        Tiến độ TB: {average === null || average === undefined ? '—' : `${formatNumber(average)}%`}
+      </p>
+    </div>
+  )
 }
 
-async function loadAllPages<T>(fetchPage: (page: number) => Promise<Paginated<T>>) {
-  const first = await fetchPage(1)
-  if (first.meta.totalPages <= 1) return first.data
-  const rest = await Promise.all(Array.from({ length: first.meta.totalPages - 1 }, (_, index) => fetchPage(index + 2)))
-  return [first, ...rest].flatMap((page) => page.data)
+function GoalStatus({ summary }: { summary: TeamPerformanceGoalSummary | null }) {
+  if (!summary || summary.totalCount === 0) {
+    return <span className="text-sm text-muted-foreground">Chưa có</span>
+  }
+  const tone: Tone = summary.pendingCount > 0
+    ? 'warning'
+    : summary.notAchievedCount > 0 ? 'danger' : 'success'
+  return (
+    <div className="space-y-1">
+      <StatusBadge tone={tone}>{formatNumber(summary.achievedCount)}/{formatNumber(summary.totalCount)} đạt</StatusBadge>
+      <p className="text-xs tabular-nums text-muted-foreground">
+        TB {summary.averageProgressPercent === null ? '—' : `${formatNumber(summary.averageProgressPercent)}%`}
+      </p>
+    </div>
+  )
+}
+
+function toMemberRow(member: TeamPerformanceMember): MemberRow {
+  return {
+    employeeId: member.employeeId,
+    employeeCode: member.employeeCode,
+    name: member.employeeName,
+    title: member.jobTitle,
+    teamId: member.teamId,
+    teamName: member.teamName,
+    revenue: member.revenueAmount,
+    views: member.traffic?.acceptedViews ?? null,
+    traffic: member.traffic,
+    salary: member.salary,
+    kpi: member.kpi,
+    okr: member.okr,
+    isComplete: member.isComplete,
+  }
 }
 
 function integerValue(value: string | null | undefined) {
@@ -566,44 +603,34 @@ function integerValue(value: string | null | undefined) {
   try { return BigInt(value.split('.')[0]) } catch { return 0n }
 }
 
-function isTrafficComplete(item: TrafficListItem | null) {
-  return Boolean(item && item.pendingPlatforms === 0 && item.rejectedPlatforms === 0 && item.completedPlatforms > 0)
-}
-
-function isMemberComplete(
-  item: MemberRow,
-  scope: { canRevenue: boolean; canTraffic: boolean; canSalary: boolean },
-) {
-  if (scope.canRevenue && item.revenue === null) return false
-  if (scope.canTraffic && !isTrafficComplete(item.traffic)) return false
-  if (scope.canSalary && item.salary?.status !== 'LOCKED') return false
-  return true
-}
-
-function trafficLabel(item: TrafficListItem | null) {
+function trafficLabel(item: TeamPerformanceMember['traffic']) {
   if (!item || item.completedPlatforms === 0) return 'Chưa nhập'
   if (item.rejectedPlatforms > 0) return 'Bị từ chối'
   if (item.pendingPlatforms > 0) return 'Chờ duyệt'
   return 'Hợp lệ'
 }
 
-function trafficTone(item: TrafficListItem | null): Tone {
+function trafficTone(item: TeamPerformanceMember['traffic']): Tone {
   if (!item || item.completedPlatforms === 0) return 'muted'
   if (item.rejectedPlatforms > 0) return 'danger'
   if (item.pendingPlatforms > 0) return 'warning'
   return 'success'
 }
 
-function salaryLabel(item: SalaryListItem['salaryRecord']) {
+function salaryLabel(item: TeamPerformanceMember['salary']) {
   if (!item) return 'Chưa tính'
   return { PENDING: 'Chờ duyệt', WARNING: 'Cảnh báo', LOCKED: 'Đã khóa', SUPERSEDED: 'Đã thay thế' }[item.status]
 }
 
-function salaryTone(item: SalaryListItem['salaryRecord']): Tone {
+function salaryTone(item: TeamPerformanceMember['salary']): Tone {
   if (!item || item.status === 'SUPERSEDED') return 'muted'
   if (item.status === 'WARNING') return 'danger'
   if (item.status === 'PENDING') return 'warning'
   return 'success'
+}
+
+function goalExportValue(summary: TeamPerformanceGoalSummary | null) {
+  return summary ? `${summary.achievedCount}/${summary.totalCount}` : ''
 }
 
 function downloadCsv(filename: string, rows: string[][]) {

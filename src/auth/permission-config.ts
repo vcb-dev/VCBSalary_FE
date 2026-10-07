@@ -61,18 +61,9 @@ export const PAGE_PERMISSIONS = {
   audit: ['audit.view_self', 'audit.view_team', 'audit.view_all'],
   notifications: ['notification.view_self'],
   accessControl: ['user.manage', 'role.view', 'role.manage', 'permission.view'],
-  teamPerformance: [
-    'kpi.view_team',
-    'kpi.view_all',
-    'okr.view_team',
-    'okr.view_all',
-    'traffic.view_team',
-    'traffic.view_all',
-    'revenue.view_team',
-    'revenue.view_all',
-    'salary.view_team',
-    'salary.view_all',
-  ],
+  // API M15 dùng phạm vi nhân sự làm tập thành viên gốc; capability từng metric được backend
+  // kiểm tra riêng để không làm lộ KPI/doanh thu/lương ngoài quyền tương ứng.
+  teamPerformance: ['employee.view_team', 'employee.view_all'],
 } as const
 
 export function hasAnyPermission(
