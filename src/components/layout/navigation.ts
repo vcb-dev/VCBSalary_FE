@@ -1,6 +1,7 @@
 import {
   BarChart3,
   CalendarRange,
+  ClipboardCheck,
   LayoutDashboard,
   ReceiptText,
   ScrollText,
@@ -39,6 +40,10 @@ export const WORKSPACE_NAVIGATION: NavigationItem[] = [
   {
     label: 'Danh sách lương', area: 'Vận hành lương', icon: ReceiptText, to: '/salary-records',
     anyOf: PAGE_PERMISSIONS.salaryRecords,
+  },
+  {
+    label: 'Chốt kỳ lương', area: 'Vận hành lương', icon: ClipboardCheck, to: '/payroll-closing',
+    anyOf: PAGE_PERMISSIONS.payrollClosing,
   },
 ]
 

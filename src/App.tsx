@@ -17,6 +17,7 @@ const SalaryRecordsPage = lazy(() => import('@/pages/SalaryRecordsPage').then((m
 const AuditPage = lazy(() => import('@/pages/AuditPage').then((module) => ({ default: module.AuditPage })))
 const AccessControlPage = lazy(() => import('@/pages/AccessControlPage').then((module) => ({ default: module.AccessControlPage })))
 const TeamPerformancePage = lazy(() => import('@/pages/TeamPerformancePage').then((module) => ({ default: module.TeamPerformancePage })))
+const PayrollClosingPage = lazy(() => import('@/pages/PayrollClosingPage').then((module) => ({ default: module.PayrollClosingPage })))
 
 function PageLoading() {
   return (
@@ -55,6 +56,9 @@ export default function App() {
                 </Route>
                 <Route element={<PermissionRoute anyOf={PAGE_PERMISSIONS.salaryRecords} />}>
                   <Route path="salary-records" element={<SalaryRecordsPage />} />
+                </Route>
+                <Route element={<PermissionRoute anyOf={PAGE_PERMISSIONS.payrollClosing} />}>
+                  <Route path="payroll-closing" element={<PayrollClosingPage />} />
                 </Route>
                 {/* Đồng bộ KPI/OKR đã gộp thành nút trên trang KPI & OKR; giữ đường dẫn cũ cho link đã lưu. */}
                 <Route path="kpi-sync" element={<Navigate to="/kpi-okr" replace />} />

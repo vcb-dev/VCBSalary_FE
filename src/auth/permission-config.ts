@@ -53,6 +53,11 @@ export const PAGE_PERMISSIONS = {
     'salary.create_revision',
     'salary.bonus',
   ],
+  payrollClosing: [
+    'payroll_period.manage',
+    'salary.calculate',
+    'salary.final_approve',
+  ],
   audit: ['audit.view_self', 'audit.view_team', 'audit.view_all'],
   notifications: ['notification.view_self'],
   accessControl: ['user.manage', 'role.view', 'role.manage', 'permission.view'],

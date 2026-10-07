@@ -29,6 +29,67 @@ export type SalaryWarning = {
   context?: Record<string, string | number | boolean | null>
 }
 
+export type PayrollClosingBlocker = 'UNCALCULATED' | 'WARNING' | 'PENDING_APPROVAL' | 'NEEDS_REVISION'
+
+export type PayrollClosingEmployee = {
+  employeeId: string
+  employeeCode: string
+  employeeName: string
+  jobTitle: string
+  teamId: string | null
+  teamName: string | null
+  salaryRecord: null | {
+    id: string
+    versionNumber: number
+    status: SalaryRecordStatus
+    totalSalaryAmount: string
+    warningCount: number
+    warnings: SalaryWarning[]
+    calculatedAt: string
+    approvedAt: string | null
+    lockedAt: string | null
+  }
+  blocker: PayrollClosingBlocker | null
+}
+
+export type PayrollClosingReadiness = {
+  period: {
+    id: string
+    code: string
+    name: string
+    status: 'DRAFT' | 'OPEN' | 'IN_REVIEW' | 'CLOSED'
+    approvalDeadline: string | null
+    closedAt: string | null
+  }
+  scope: 'SELF' | 'TEAM' | 'ALL' | 'NONE'
+  capabilities: {
+    canManagePeriod: boolean
+    canCalculate: boolean
+    canApprove: boolean
+  }
+  scopeReady: boolean
+  readyToClose: boolean
+  summary: {
+    employeeCount: number
+    lockedCount: number
+    pendingApprovalCount: number
+    warningCount: number
+    uncalculatedCount: number
+    needsRevisionCount: number
+    blockerCount: number
+  }
+  closingSummary: {
+    employeeCount: number
+    lockedCount: number
+    pendingApprovalCount: number
+    warningCount: number
+    uncalculatedCount: number
+    needsRevisionCount: number
+    blockerCount: number
+  }
+  employees: PayrollClosingEmployee[]
+}
+
 export type SalaryRecord = {
   id: string
   employeeId: string
@@ -160,6 +221,22 @@ export async function calculatePeriodSalary(periodId: string, mode: SalaryCalcul
     warningCount: number
     data: unknown[]
   }>(`/payroll-periods/${periodId}/salaries/calculate`, undefined, { params: { mode } })
+  return data
+}
+
+export async function getPayrollClosingReadiness(periodId: string) {
+  const { data } = await api.get<PayrollClosingReadiness>(`/payroll-periods/${periodId}/closing-readiness`)
+  return data
+}
+
+export async function approveReadySalaries(periodId: string) {
+  const { data } = await api.post<{
+    candidateCount: number
+    approvedCount: number
+    failedCount: number
+    approvedIds: string[]
+    failed: Array<{ id: string; message: string }>
+  }>(`/payroll-periods/${periodId}/salaries/approve-ready`)
   return data
 }
 
