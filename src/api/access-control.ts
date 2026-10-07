@@ -78,7 +78,7 @@ export type CreateUserInput = {
   employeeId?: string
   // Vai trò + phạm vi dữ liệu gán ngay lúc tạo:
   //  - bỏ trống (undefined): BE tự suy vai trò mặc định theo nhóm nghiệp vụ của nhân sự (nếu có
-  //    employeeId) — EDITOR/CONTENT_CREATOR với scope SELF; nhân sự không có nhóm → 0 vai trò.
+  //    employeeId) — thường là STAFF "Nhân viên" với scope SELF; nhân sự không có nhóm → 0 vai trò.
   //  - [] : tạo tài khoản KHÔNG vai trò một cách tường minh.
   //  - có phần tử: dùng đúng danh sách này.
   roles?: RoleAssignmentInput[]

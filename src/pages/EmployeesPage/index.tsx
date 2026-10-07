@@ -1827,8 +1827,8 @@ function CreateEmployeeDialog({
                       onChange={setAccountPassword}
                     />
                     <p className="text-xs text-muted-foreground">
-                      Tài khoản tự nhận vai trò theo nhóm nghiệp vụ đã chọn ở trên (EDITOR/CONTENT_CREATOR · phạm vi
-                      "Chỉ mình"). Cần vai trò khác (Leader, HR…) thì gán trong "Phân quyền & tài khoản".
+                      Tài khoản tự nhận vai trò "Nhân viên" (phạm vi "Chỉ mình") theo nhóm nghiệp vụ đã chọn ở trên.
+                      Cần vai trò khác (Trưởng nhóm, Nhân sự…) thì gán trong "Phân quyền & tài khoản".
                     </p>
                   </div>
                 )}

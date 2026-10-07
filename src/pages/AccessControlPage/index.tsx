@@ -63,8 +63,7 @@ const SYSTEM_ROLE_SCOPES: Record<string, ScopeType> = {
   ACCOUNTANT: 'ALL',
   MANAGER_APPROVER: 'ALL',
   LEADER: 'TEAM',
-  EDITOR: 'SELF',
-  CONTENT_CREATOR: 'SELF',
+  STAFF: 'SELF',
 }
 
 const STATUS_LABEL: Record<UserStatus, string> = {
