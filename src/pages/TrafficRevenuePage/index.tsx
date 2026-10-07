@@ -914,9 +914,8 @@ function RevenueSection({ period, canWrite }: { period: PayrollPeriod | null; ca
               <p className={`flex items-start gap-2 rounded-lg px-3 py-2 text-xs leading-5 ${toneSurface.info}`}>
                 <Eye className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
                 <span>
-                  <strong>Chế độ chỉ xem.</strong> Theo quy định nghiệp vụ, chỉ vai trò <strong>Kế toán</strong> mới
-                  được nhập hoặc sửa doanh thu chính thức — kể cả tài khoản quản trị hệ thống. Liên hệ kế toán để
-                  cập nhật số liệu cho kỳ này.
+                  <strong>Chế độ chỉ xem.</strong> Tài khoản của bạn chưa được cấp quyền nhập doanh thu chính thức.
+                  Liên hệ quản trị hệ thống để được cấp quyền, hoặc nhờ kế toán cập nhật số liệu cho kỳ này.
                 </span>
               </p>
             )}

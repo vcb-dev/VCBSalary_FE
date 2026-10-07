@@ -1208,9 +1208,9 @@ function RolePermissionsDialog({
             </Alert>
           )}
 
-          {editable && (
+          {editable && role.code === 'ACCOUNTANT' && (
             <p className="text-xs text-muted-foreground">
-              Quyền “Nhập doanh thu chính thức” được hệ thống khóa và chỉ cấp cho vai trò Kế toán.
+              Vai trò Kế toán luôn giữ quyền “Nhập doanh thu chính thức”.
             </p>
           )}
 
@@ -1227,7 +1227,7 @@ function RolePermissionsDialog({
                         checked={checked.has(permission.code)}
                         disabled={
                           !permissionsEditable ||
-                          permission.code === 'revenue.write'
+                          (permission.code === 'revenue.write' && role.code === 'ACCOUNTANT')
                         }
                         onChange={() => toggle(permission.code)}
                       />
