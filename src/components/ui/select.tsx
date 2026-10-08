@@ -8,6 +8,16 @@ import { ChevronDownIcon, CheckIcon, ChevronUpIcon, SearchIcon } from "lucide-re
 
 const SelectSearchContext = React.createContext("")
 
+type SelectState = { open: boolean; value: string | undefined }
+const SelectStateContext = React.createContext<SelectState | null>(null)
+/** Khi đóng, `null` = render đủ mọi mục; còn lại chỉ render mục có value này. */
+const SelectClosedValueContext = React.createContext<string | undefined | null>(null)
+
+// Lúc đóng, Radix vẫn render mọi mục vào một DocumentFragment ẩn chỉ để SelectValue lấy nhãn của mục
+// đang chọn. Danh sách dài (nhân sự, kỳ lương) vì thế giữ hàng trăm node ẩn ở mọi trang; từ ngưỡng này
+// trở lên chỉ render mục đang chọn khi đóng. Danh sách ngắn giữ nguyên để không mất typeahead trên nút.
+const COLLAPSE_CLOSED_ITEMS_FROM = 30
+
 function normalizeSearchText(value: string) {
   return value
     .normalize("NFD")
@@ -46,10 +56,55 @@ function hasMatchingSelectItem(node: React.ReactNode, search: string): boolean {
   return hasMatch
 }
 
+function countSelectItems(node: React.ReactNode, limit: number): number {
+  let count = 0
+  React.Children.forEach(node, (child) => {
+    if (count >= limit || !React.isValidElement(child)) return
+    if (child.type === SelectItem) {
+      count += 1
+      return
+    }
+    const childProps = child.props as { children?: React.ReactNode }
+    if (childProps.children) count += countSelectItems(childProps.children, limit - count)
+  })
+  return count
+}
+
 function Select({
+  open: openProp,
+  defaultOpen = false,
+  onOpenChange,
+  value: valueProp,
+  defaultValue,
+  onValueChange,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Root>) {
-  return <SelectPrimitive.Root data-slot="select" {...props} />
+  // Theo dõi trạng thái mở và giá trị cả khi dùng kiểu uncontrolled, để SelectContent biết lúc nào được rút gọn.
+  const [uncontrolledOpen, setUncontrolledOpen] = React.useState(defaultOpen)
+  const [uncontrolledValue, setUncontrolledValue] = React.useState(defaultValue)
+  const open = openProp ?? uncontrolledOpen
+  const value = valueProp ?? uncontrolledValue
+  const state = React.useMemo(() => ({ open, value }), [open, value])
+
+  return (
+    <SelectStateContext.Provider value={state}>
+      <SelectPrimitive.Root
+        data-slot="select"
+        open={open}
+        onOpenChange={(next) => {
+          setUncontrolledOpen(next)
+          onOpenChange?.(next)
+        }}
+        value={valueProp}
+        defaultValue={defaultValue}
+        onValueChange={(next) => {
+          setUncontrolledValue(next)
+          onValueChange?.(next)
+        }}
+        {...props}
+      />
+    </SelectStateContext.Provider>
+  )
 }
 
 function SelectGroup({
@@ -110,8 +165,15 @@ function SelectContent({
   searchPlaceholder?: string
   emptySearchMessage?: string
 }) {
+  const state = React.useContext(SelectStateContext)
+  const closed = state !== null && !state.open
   const [search, setSearch] = React.useState("")
+  // Mở lại thì bắt đầu từ danh sách đầy đủ; từ khoá cũ còn có thể lọc mất mục đang chọn khỏi SelectValue.
+  if (closed && search) setSearch("")
   const hasSearchResult = !search || hasMatchingSelectItem(children, search)
+  const closedValue = closed && countSelectItems(children, COLLAPSE_CLOSED_ITEMS_FROM) >= COLLAPSE_CLOSED_ITEMS_FROM
+    ? state.value
+    : null
 
   return (
     <SelectPrimitive.Portal>
@@ -152,7 +214,9 @@ function SelectContent({
               </div>
             </div>
           ) : null}
-          <SelectSearchContext.Provider value={search}>{children}</SelectSearchContext.Provider>
+          <SelectClosedValueContext.Provider value={closedValue}>
+            <SelectSearchContext.Provider value={search}>{children}</SelectSearchContext.Provider>
+          </SelectClosedValueContext.Provider>
           {!hasSearchResult ? (
             <p className="px-3 py-5 text-center text-sm text-muted-foreground">{emptySearchMessage}</p>
           ) : null}
@@ -185,9 +249,10 @@ function SelectItem({
   searchText?: string
 }) {
   const search = React.useContext(SelectSearchContext)
-  const itemText = searchText ?? getNodeText(children)
+  const closedValue = React.useContext(SelectClosedValueContext)
 
-  if (search && !normalizeSearchText(itemText).includes(normalizeSearchText(search))) {
+  if (closedValue !== null && props.value !== closedValue) return null
+  if (search && !normalizeSearchText(searchText ?? getNodeText(children)).includes(normalizeSearchText(search))) {
     return null
   }
 

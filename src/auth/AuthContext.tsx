@@ -24,7 +24,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const identityChanged = currentUserIdRef.current !== null && currentUserIdRef.current !== nextUser?.id
     if (identityChanged) queryClient.clear()
     currentUserIdRef.current = nextUser?.id ?? null
-    setUser(nextUser)
+    // /auth/me chạy lại mỗi phút và mỗi lần focus cửa sổ; giữ object cũ khi nội dung không đổi để
+    // toàn bộ app (mọi nơi dùng useAuth) không re-render vô ích.
+    setUser((previous) => previous && nextUser && JSON.stringify(previous) === JSON.stringify(nextUser) ? previous : nextUser)
   }, [queryClient])
 
   const refreshUser = useCallback(async () => {

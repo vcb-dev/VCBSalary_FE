@@ -227,7 +227,7 @@ export function AppSidebar({
       {mobileOpen ? (
         <button
           type="button"
-          className="fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-40 bg-slate-950/50 lg:hidden"
           aria-label="Đóng menu"
           onClick={onCloseMobile}
         />

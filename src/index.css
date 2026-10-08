@@ -183,7 +183,9 @@
   [data-slot="dialog-content"], [data-slot="dropdown-menu-content"], [data-slot="select-content"] {
     box-shadow: 0 18px 50px rgb(15 23 42 / 0.15);
   }
-  main > div { animation: page-in 220ms ease-out both; }
+  /* `backwards` thay vì `both`: hết animation thì bỏ hẳn transform, không giữ cả trang (có thể dài hàng
+     nghìn dòng bảng) thành một lớp riêng trên GPU suốt thời gian xem. */
+  main > div { animation: page-in 220ms ease-out backwards; }
 }
 
 @keyframes page-in {

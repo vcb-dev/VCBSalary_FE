@@ -31,19 +31,23 @@ export const api = axios.create({
 
 // Các khóa nghiệp vụ trong database là số tự tăng, nhưng FE giữ chúng ở dạng chuỗi để tương thích
 // tự nhiên với value của select/input và URL. Chuẩn hóa tại một chỗ giúp tránh so sánh `1 !== "1"`.
+// Sửa thẳng trên object JSON vừa parse (không ai khác giữ nó) thay vì dựng lại cả cây: response lớn
+// như bảng lương cả kỳ không còn bị nhân đôi bộ nhớ chỉ để đổi vài khóa id.
 function normalizeIds(value: unknown, key = ''): unknown {
-  // File export phải giữ nguyên binary response; Object.entries(Blob) sẽ biến nó thành object rỗng.
+  // File export phải giữ nguyên binary response.
   if (value instanceof Blob || value instanceof ArrayBuffer) return value
   if (typeof value === 'number' && (key === 'id' || key.endsWith('Id'))) {
     return String(value)
   }
   if (Array.isArray(value)) {
-    return value.map((item) => normalizeIds(item, key.endsWith('Ids') ? 'id' : ''))
+    const itemKey = key.endsWith('Ids') ? 'id' : ''
+    for (let index = 0; index < value.length; index += 1) value[index] = normalizeIds(value[index], itemKey)
+    return value
   }
   if (value && typeof value === 'object') {
-    return Object.fromEntries(
-      Object.entries(value).map(([childKey, childValue]) => [childKey, normalizeIds(childValue, childKey)]),
-    )
+    const record = value as Record<string, unknown>
+    for (const childKey of Object.keys(record)) record[childKey] = normalizeIds(record[childKey], childKey)
+    return record
   }
   return value
 }
