@@ -579,11 +579,12 @@ function PeriodActions({
 
   const openMutation = useMutation({
     mutationFn: () => openPayrollPeriod(period.id),
-    onSuccess: ({ automaticKpiAssignmentCount }) => {
+    onSuccess: ({ automaticKpiAssignmentCount, copiedKpiTargetCount }) => {
       void queryClient.invalidateQueries({ queryKey: PERIOD_KEYS.periods })
       void queryClient.invalidateQueries({ queryKey: PERIOD_KEYS.snapshots(period.id) })
       void queryClient.invalidateQueries({ queryKey: PERIOD_KEYS.readiness(period.id) })
-      toast.success(`Đã mở kỳ lương và tự gán ${automaticKpiAssignmentCount ?? 0} nhóm KPI`)
+      const copiedText = copiedKpiTargetCount ? `, chép ${copiedKpiTargetCount} mục tiêu từ kỳ trước` : ''
+      toast.success(`Đã mở kỳ lương và tự gán ${automaticKpiAssignmentCount ?? 0} nhóm KPI${copiedText}`)
     },
     onError: (error) => toast.error(getApiErrorMessage(error)),
   })

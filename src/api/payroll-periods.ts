@@ -21,6 +21,7 @@ export type PayrollPeriod = {
   closedAt: string | null
   createdAt: string
   automaticKpiAssignmentCount?: number
+  copiedKpiTargetCount?: number
 }
 
 export type PayrollPeriodEmployeeSnapshot = {
