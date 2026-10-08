@@ -13,6 +13,7 @@ import { PAGE_PERMISSIONS } from '@/auth/permission-config'
 import { getUnreadNotificationCount } from '@/api/notifications'
 import { AppSidebar } from '@/components/layout/AppSidebar'
 import { NotificationsPopover } from '@/components/layout/NotificationsPopover'
+import { RouteErrorBoundary } from '@/components/shared/RouteErrorBoundary'
 import {
   MANAGEMENT_NAVIGATION, WORKSPACE_NAVIGATION, canShowNavigationItem, findNavigationItem,
 } from '@/components/layout/navigation'
@@ -105,7 +106,9 @@ function AppLayoutContent() {
 
       {/* Khi drawer mobile mở, phần còn lại của trang bị khoá tương tác để Tab không lọt ra sau lớp phủ. */}
       <div className="min-w-0" inert={menuOpen || undefined}>
-        <header className="sticky top-0 z-30 flex h-[72px] items-center justify-between border-b border-border bg-background/88 px-4 backdrop-blur-xl lg:px-7">
+        {/* Nền đặc thay cho backdrop-blur: header dính nên blur phải vẽ lại vùng phía sau ở mọi khung hình
+            cuộn, rất nặng với máy không có GPU rời; nền 88% cũ gần như đã che kín nội dung bên dưới. */}
+        <header className="sticky top-0 z-30 flex h-[72px] items-center justify-between border-b border-border bg-background px-4 lg:px-7">
           <div className="flex min-w-0 items-center gap-3">
             <Button ref={menuButtonRef} variant="outline" size="icon" className="shrink-0 bg-white lg:hidden" onClick={() => setMenuOpenedAt(location.pathname)} aria-label="Mở menu" aria-expanded={menuOpen} aria-controls="app-sidebar"><Menu className="size-5" /></Button>
             <div className="min-w-0">
@@ -148,7 +151,9 @@ function AppLayoutContent() {
             </DropdownMenu>
           </div>
         </header>
-        <main id="main-content" className="mx-auto max-w-[1536px] p-4 sm:p-5 lg:p-7"><Outlet /></main>
+        {/* Không giới hạn max-width: màn rộng (nhất là khi thu gọn sidebar) phải lấp đầy, không để hai dải trống hai bên. */}
+        {/* key theo đường dẫn: lỗi của trang trước không đi theo sang trang mới. */}
+        <main id="main-content" className="p-4 sm:p-5 lg:p-7"><RouteErrorBoundary key={location.pathname}><Outlet /></RouteErrorBoundary></main>
       </div>
     </div>
   )
