@@ -93,16 +93,11 @@ export function MemberDashboard({
         title={`Xin chào, ${fullName ?? 'bạn'}`}
         description={`Theo dõi tổng thu nhập đã nhận và biến động lương theo từng tháng trong năm ${year}.`}
         meta={<span className="inline-flex items-center rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">{role}</span>}
-        action={<div className="flex flex-wrap items-center gap-2"><Button variant="outline" size="icon" onClick={refresh} disabled={refreshing || periods.length === 0} title="Làm mới dữ liệu" aria-label="Làm mới dữ liệu thu nhập"><RefreshCw className={`size-4 ${refreshing ? 'animate-spin' : ''}`} /></Button><Button disabled={!currentGoalRecord} title={!currentGoalRecord ? 'Chưa có bảng lương để tính mục tiêu' : `Ước tính theo ${goalSourceRow?.period.name}`} onClick={() => currentGoalRecord && setGoalRecord({ id: currentGoalRecord.id, employeeName: goalSourceRow?.item?.employeeName ?? fullName ?? 'Bạn' })}><Target className="size-4" />Mục tiêu thu nhập</Button></div>}
-      />
-
-      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card px-3 py-2.5" aria-label="Bộ lọc năm thu nhập">
-        <Select value={String(year)} onValueChange={(value) => onYearChange(Number(value))}>
-          <SelectTrigger className="w-full sm:w-36" aria-label="Chọn năm thống kê thu nhập"><SelectValue /></SelectTrigger>
+        action={<div className="flex flex-wrap items-center gap-2"><Select value={String(year)} onValueChange={(value) => onYearChange(Number(value))}>
+          <SelectTrigger className="w-full sm:w-32" aria-label="Chọn năm thống kê thu nhập" title="Tối đa 12 kỳ trong năm"><SelectValue /></SelectTrigger>
           <SelectContent>{availableYears.map((item) => <SelectItem key={item} value={String(item)}>Năm {item}</SelectItem>)}</SelectContent>
-        </Select>
-        <span className="text-xs text-muted-foreground sm:ml-auto sm:pr-1">Tối đa 12 kỳ trong năm</span>
-      </div>
+        </Select><Button variant="outline" size="icon" onClick={refresh} disabled={refreshing || periods.length === 0} title="Làm mới dữ liệu" aria-label="Làm mới dữ liệu thu nhập"><RefreshCw className={`size-4 ${refreshing ? 'animate-spin' : ''}`} /></Button><Button disabled={!currentGoalRecord} title={!currentGoalRecord ? 'Chưa có bảng lương để tính mục tiêu' : `Ước tính theo ${goalSourceRow?.period.name}`} onClick={() => currentGoalRecord && setGoalRecord({ id: currentGoalRecord.id, employeeName: goalSourceRow?.item?.employeeName ?? fullName ?? 'Bạn' })}><Target className="size-4" />Mục tiêu thu nhập</Button></div>}
+      />
 
       {hasError ? <ErrorState description="Một số kỳ chưa tải được dữ liệu lương. Biểu đồ có thể chưa đầy đủ." onRetry={refresh} retrying={refreshing} /> : null}
 

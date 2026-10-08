@@ -1,19 +1,17 @@
 import { useState } from 'react'
 import { useQueries } from '@tanstack/react-query'
-import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import type { Paginated } from '@/api/access-control'
+import { CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { Department, Team } from '@/api/organization'
 import type { PayrollPeriod } from '@/api/payroll-periods'
-import { listRevenue, type EmployeeRevenue } from '@/api/revenue'
-import { listSalaryRecords, type SalaryListItem } from '@/api/salary'
-import { listTraffic, type TrafficListItem } from '@/api/traffic'
+import { listSalaryRecords } from '@/api/salary'
 import { Card, CardContent } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { formatCompactMoney, formatMoney, formatNumber, sumAmounts } from '@/lib/format'
+import {
+  periodDataQuery, toDashboardSalary, type DashboardRevenueRow, type DashboardSalaryRow, type DashboardTrafficRow, type Metric, type PeriodData,
+} from './dashboard-data'
 
-type Metric = 'salary' | 'revenue' | 'traffic'
-type PeriodData = { salaries: SalaryListItem[]; revenues: EmployeeRevenue[]; traffic: TrafficListItem[]; failedMetrics?: Metric[] }
 type TeamTotal = { id: string; name: string; salary: number; revenue: number; traffic: number }
 
 const METRICS: Record<Metric, { label: string; shortLabel: string; color: string; unit: string }> = {
@@ -23,8 +21,6 @@ const METRICS: Record<Metric, { label: string; shortLabel: string; color: string
 }
 /** Dải đơn sắc theo giá trị giảm dần: nhóm càng lớn càng đậm, mắt đọc thứ hạng ngay trên hình. */
 const SHARE_COLORS = ['#082d58', '#0a4c8f', '#1a6cba', '#3f8ad0', '#6aa8e0', '#95c4ec', '#b8d9f4', '#c9a267', '#dcbb8c', '#e8d2ae']
-/** Màu cột/lát nằm ngoài lựa chọn hiện tại — vẫn đọc được nhưng lùi hẳn về sau. */
-const MUTED_SERIES = '#c7d3e0'
 const AXIS_TICK = '#556478'
 const GRID_LINE = '#e3e9f2'
 const TOOLTIP_STYLE = { borderRadius: 10, borderColor: '#d2dce8', boxShadow: '0 8px 20px rgb(15 23 42 / .08)' } as const
@@ -59,13 +55,6 @@ function percentage(value: number, total: number) {
   return total > 0 ? (value / total) * 100 : 0
 }
 
-async function loadAllPages<T>(fetchPage: (page: number) => Promise<Paginated<T>>) {
-  const first = await fetchPage(1)
-  if (first.meta.totalPages <= 1) return first.data
-  const rest = await Promise.all(Array.from({ length: first.meta.totalPages - 1 }, (_, index) => fetchPage(index + 2)))
-  return [first, ...rest].flatMap((page) => page.data)
-}
-
 function groupTeams(data: PeriodData) {
   const grouped = new Map<string, TeamTotal>()
   function ensure(id: string | null, name: string | null) {
@@ -93,20 +82,22 @@ function groupTeams(data: PeriodData) {
 }
 
 export function DashboardCharts({
-  periods, period, departmentId, selectedDepartmentName, teamId, selectedTeamName, departments, organizationTeams, salaries, revenues, traffic,
+  periods, period, year, departmentId, selectedDepartmentName, teamId, selectedTeamName, departments, organizationTeams, salaries, revenues, traffic,
   canViewSalary, canViewRevenue, canViewTraffic, showRankings,
 }: {
   periods: PayrollPeriod[]
-  period: PayrollPeriod
+  /** `null` khi xem tất cả kỳ lương trong năm: `salaries`/`revenues`/`traffic` khi đó gộp mọi kỳ. */
+  period: PayrollPeriod | null
+  year: number
   departmentId: string
   selectedDepartmentName?: string
   teamId: string
   selectedTeamName?: string
   departments: Department[]
   organizationTeams: Team[]
-  salaries: SalaryListItem[]
-  revenues: EmployeeRevenue[]
-  traffic: TrafficListItem[]
+  salaries: DashboardSalaryRow[]
+  revenues: DashboardRevenueRow[]
+  traffic: DashboardTrafficRow[]
   canViewSalary: boolean
   canViewRevenue: boolean
   canViewTraffic: boolean
@@ -122,33 +113,13 @@ export function DashboardCharts({
   const teamDepartments = new Map(organizationTeams.map((item) => [item.id, item.departmentId]))
   const departmentNames = new Map(departments.map((item) => [item.id, item.name]))
   const chronological = [...periods].sort((a, b) => a.startDate.localeCompare(b.startDate))
-  const currentIndex = chronological.findIndex((item) => item.id === period.id)
+  // Xem cả năm thì không có kỳ "hiện tại": mọi kỳ đều lấy từ historyQueries, và các phép so sánh với kỳ trước tự bỏ trống.
+  const currentIndex = period ? chronological.findIndex((item) => item.id === period.id) : -1
   const timeline = chronological
-  const dashboardYear = period.payrollYear
-  const history = timeline.filter((item) => item.id !== period.id)
+  const dashboardYear = year
+  const history = timeline.filter((item) => item.id !== period?.id)
   const historyQueries = useQueries({
-    queries: history.map((item) => ({
-      queryKey: ['dashboard-chart-history', item.id, canViewSalary, canViewRevenue, canViewTraffic],
-      queryFn: async (): Promise<PeriodData> => {
-        const [historySalaries, historyRevenues, historyTraffic] = await Promise.allSettled([
-          canViewSalary ? loadAllPages((page) => listSalaryRecords(item.id, { page, pageSize: 100 })) : Promise.resolve([]),
-          canViewRevenue ? loadAllPages((page) => listRevenue(item.id, { page, pageSize: 100 })) : Promise.resolve([]),
-          canViewTraffic ? loadAllPages((page) => listTraffic(item.id, { page, pageSize: 100 })) : Promise.resolve([]),
-        ])
-        return {
-          salaries: historySalaries.status === 'fulfilled' ? historySalaries.value : [],
-          revenues: historyRevenues.status === 'fulfilled' ? historyRevenues.value : [],
-          traffic: historyTraffic.status === 'fulfilled' ? historyTraffic.value : [],
-          failedMetrics: [
-            historySalaries.status === 'rejected' ? 'salary' : null,
-            historyRevenues.status === 'rejected' ? 'revenue' : null,
-            historyTraffic.status === 'rejected' ? 'traffic' : null,
-          ].filter((metric): metric is Metric => metric !== null),
-        }
-      },
-      staleTime: 60_000,
-      retry: 1,
-    })),
+    queries: history.map((item) => periodDataQuery(item.id, { canViewSalary, canViewRevenue, canViewTraffic })),
   })
   const trend = timeline.map((item) => {
     const queryIndex = history.findIndex((previous) => previous.id === item.id)
@@ -175,19 +146,27 @@ export function DashboardCharts({
   const scopedSalaries = salaries.filter((item) => teamId !== 'all'
     ? item.teamId === teamId
     : departmentId === 'all' || (item.teamId !== null && teamDepartments.get(item.teamId) === departmentId))
-  const selectableEmployees = scopedSalaries.filter((item) => item.salaryRecord !== null)
-  const topEarners = [...selectableEmployees]
-    .filter((item) => amount(item.salaryRecord?.totalSalaryAmount) > 0)
-    .sort((a, b) => amount(b.salaryRecord?.totalSalaryAmount) - amount(a.salaryRecord?.totalSalaryAmount) || a.employeeName.localeCompare(b.employeeName, 'vi'))
+  // Xem cả năm thì mỗi nhân sự có một dòng lương ở từng kỳ, nên cộng dồn theo nhân sự trước khi xếp hạng.
+  const employeeSalaries = new Map<string, { employeeId: string; employeeCode: string; employeeName: string; salary: number }>()
+  scopedSalaries.forEach((item) => {
+    if (!item.salaryRecord) return
+    const row = employeeSalaries.get(item.employeeId) ?? { employeeId: item.employeeId, employeeCode: item.employeeCode, employeeName: item.employeeName, salary: 0 }
+    row.salary += amount(item.salaryRecord.totalSalaryAmount)
+    employeeSalaries.set(item.employeeId, row)
+  })
+  const selectableEmployees = [...employeeSalaries.values()]
+  const topEarners = selectableEmployees
+    .filter((item) => item.salary > 0)
+    .sort((a, b) => b.salary - a.salary || a.employeeName.localeCompare(b.employeeName, 'vi'))
     .slice(0, 10)
   const selectedEmployee = selectableEmployees.find((item) => item.employeeId === chosenEmployeeId)
-  const employeeHistoryPeriods = chronological.filter((item) => item.id !== period.id && !history.some((recent) => recent.id === item.id))
+  const employeeHistoryPeriods = chronological.filter((item) => item.id !== period?.id && !history.some((recent) => recent.id === item.id))
   const employeeHistoryQueries = useQueries({
     queries: employeeHistoryPeriods.map((item) => ({
       queryKey: ['dashboard-employee-salary-history', selectedEmployee?.employeeId, item.id],
       queryFn: async () => {
         const response = await listSalaryRecords(item.id, { search: selectedEmployee?.employeeCode, pageSize: 100 })
-        return response.data
+        return response.data.map(toDashboardSalary)
       },
       enabled: Boolean(selectedEmployee),
       staleTime: 60_000,
@@ -197,7 +176,7 @@ export function DashboardCharts({
   const employeeTrend = selectedEmployee ? chronological.map((item) => {
     const recentIndex = history.findIndex((recent) => recent.id === item.id)
     const olderIndex = employeeHistoryPeriods.findIndex((older) => older.id === item.id)
-    const current = item.id === period.id
+    const current = item.id === period?.id
     const recentQuery = recentIndex >= 0 ? historyQueries[recentIndex] : null
     const olderQuery = olderIndex >= 0 ? employeeHistoryQueries[olderIndex] : null
     const records = current ? salaries : recentQuery ? recentQuery.data?.salaries : olderQuery?.data
@@ -214,7 +193,9 @@ export function DashboardCharts({
   const employeeHistoryLoading = selectedEmployee && employeeTrend.some((item) => item.status === 'loading')
   const employeeHistoryFailed = employeeTrend.some((item) => item.status === 'error')
   const employeePreviousSalary = employeeTrend[currentIndex - 1]?.value
-  const employeeCurrentSalary = employeeTrend[currentIndex]?.value
+  const employeeCurrentSalary = period
+    ? employeeTrend[currentIndex]?.value
+    : employeeTrend.reduce((sum, item) => sum + (item.value ?? 0), 0)
   const employeeSalaryChange = employeeCurrentSalary !== null && employeeCurrentSalary !== undefined
     && employeePreviousSalary !== null && employeePreviousSalary !== undefined && employeePreviousSalary > 0
     ? ((employeeCurrentSalary - employeePreviousSalary) / employeePreviousSalary) * 100
@@ -247,7 +228,7 @@ export function DashboardCharts({
     traffic: teams.reduce((sum, item) => sum + item.traffic, 0),
   }
 
-  // Phạm vi đã hiện rõ ở thanh lọc đầu trang, nên phần phụ đề dưới mỗi biểu đồ chỉ nhắc lại thật ngắn.
+  // Phạm vi đã hiện rõ ở bộ lọc trên header, nên phần phụ đề dưới mỗi biểu đồ chỉ nhắc lại thật ngắn.
   const scopeLabel = teamId !== 'all'
     ? selectedTeamName ?? 'Team đã chọn'
     : departmentId !== 'all' ? selectedDepartmentName ?? 'Phòng ban đã chọn' : 'Toàn hệ thống'
@@ -379,26 +360,9 @@ export function DashboardCharts({
 
         {showRankings ? <Card className="py-0 xl:col-span-2">
           <CardContent className="p-5">
-            <ChartHeading title="Xếp hạng team" detail={METRICS[metric].label} />
-            <div className="mt-4 flex flex-wrap items-baseline justify-between gap-2 border-b border-border pb-3">
-              <span className="text-xs text-muted-foreground">{formatNumber(teams.length)} team trong phạm vi</span>
-              <strong className="text-lg font-bold tabular-nums" title={formatMetric(totals[metric], metric)}>{metric === 'traffic' ? formatNumber(totals.traffic) : formatCompactMoney(totals[metric])}</strong>
-            </div>
+            <ChartHeading title="Xếp hạng team" detail={`Theo ${METRICS[metric].label.toLowerCase()} · đổi chỉ số ở biểu đồ xu hướng`} />
             {ranked.length === 0 || totals[metric] === 0 ? <ChartEmpty text={`Chưa có ${METRICS[metric].label.toLowerCase()} để so sánh team.`} /> : (
-              <div className="mt-4 max-h-96 w-full overflow-y-auto" role="img" aria-label={`Biểu đồ xếp hạng ${METRICS[metric].label.toLowerCase()} giữa các team`}>
-                <div style={{ height: Math.max(260, ranked.length * 36 + 24) }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={ranked} layout="vertical" margin={{ top: 0, right: 4, left: 0, bottom: 0 }}>
-                    <XAxis type="number" hide />
-                    <YAxis type="category" dataKey="name" width={110} axisLine={false} tickLine={false} tick={{ fill: AXIS_TICK, fontSize: 11 }} tickFormatter={(value: string) => value.length > 17 ? `${value.slice(0, 16)}…` : value} />
-                    <Tooltip formatter={(value) => [formatMetric(Number(value), metric), METRICS[metric].label]} contentStyle={TOOLTIP_STYLE} />
-                    <Bar dataKey={metric} radius={[0, 5, 5, 0]} maxBarSize={18}>
-                      {ranked.map((item) => <Cell key={item.id} fill={teamId === 'all' || item.id === teamId ? METRICS[metric].color : MUTED_SERIES} />)}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-                </div>
-              </div>
+              <TeamRanking ranked={ranked} metric={metric} total={totals[metric]} />
             )}
           </CardContent>
         </Card> : null}
@@ -412,7 +376,7 @@ export function DashboardCharts({
               {topEarners.length === 0 ? <ChartEmpty text="Chưa có bảng lương đã tính trong phạm vi này để xếp hạng." /> : (
                 <ol className="mt-4 space-y-1.5" aria-label="Xếp hạng lương nhân sự">
                   {topEarners.map((item, index) => {
-                    const salary = amount(item.salaryRecord?.totalSalaryAmount)
+                    const salary = item.salary
                     const selected = selectedEmployee?.employeeId === item.employeeId
                     return <li key={item.employeeId}>
                       <button
@@ -427,7 +391,7 @@ export function DashboardCharts({
                           <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground" title={item.employeeName}>{item.employeeName}</span>
                           <span className="shrink-0 text-sm font-bold tabular-nums text-foreground" title={formatMoney(salary)}>{formatCompactMoney(salary)}</span>
                         </span>
-                        <span className="mt-2 ml-9 block h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden="true"><span className="block h-full rounded-full bg-primary/85 transition-[width] duration-300" style={{ width: `${percentage(salary, amount(topEarners[0].salaryRecord?.totalSalaryAmount))}%` }} /></span>
+                        <span className="mt-2 ml-9 block h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden="true"><span className="block h-full rounded-full bg-primary/85 transition-[width] duration-300" style={{ width: `${percentage(salary, topEarners[0].salary)}%` }} /></span>
                       </button>
                     </li>
                   })}
@@ -446,7 +410,7 @@ export function DashboardCharts({
               {!selectedEmployee ? <ChartEmpty text={showRankings ? 'Chọn một nhân sự trong top 10 hoặc từ danh sách để xem biến động lương.' : 'Chọn một nhân sự từ danh sách để xem biến động lương.'} /> : (
                 <>
                   <div className="mt-4 flex flex-wrap items-baseline justify-between gap-2 border-b border-border pb-3">
-                    <span className="min-w-0 truncate text-xs text-muted-foreground" title={selectedEmployee.employeeName}>{selectedEmployee.employeeName}</span>
+                    <span className="min-w-0 truncate text-xs text-muted-foreground" title={selectedEmployee.employeeName}>{selectedEmployee.employeeName}{period ? null : ` · tổng năm ${dashboardYear}`}</span>
                     <span className="flex items-baseline gap-2">
                       <strong className="text-lg font-bold tabular-nums" title={formatMoney(employeeCurrentSalary)}>{formatCompactMoney(employeeCurrentSalary)}</strong>
                       {employeeSalaryChange !== null ? <span className="text-xs font-semibold tabular-nums text-muted-foreground">{employeeSalaryChange > 0 ? '+' : ''}{employeeSalaryChange.toLocaleString('vi-VN', { maximumFractionDigits: 1 })}%</span> : null}
@@ -478,6 +442,63 @@ export function DashboardCharts({
         </div>
       ) : null}
     </section>
+  )
+}
+
+function formatCompactMetric(value: number, metric: Metric) {
+  return metric === 'traffic' ? `${formatAxis(value, 'traffic')} views` : formatCompactMoney(value)
+}
+
+/**
+ * Danh sách xếp hạng thay cho biểu đồ cột: tên team dài không bị gãy dòng, số liệu đọc ngay không
+ * cần rê chuột, và team bằng 0 không chiếm một hàng trống mỗi team.
+ */
+function TeamRanking({ ranked, metric, total }: { ranked: TeamTotal[]; metric: Metric; total: number }) {
+  const withValue = ranked.filter((item) => item[metric] > 0)
+  const withoutValue = ranked.filter((item) => item[metric] <= 0)
+  const top = withValue[0]?.[metric] ?? 0
+  const label = METRICS[metric].label.toLowerCase()
+
+  return (
+    <>
+      <div className="mt-4 flex flex-wrap items-baseline justify-between gap-2 border-b border-border pb-3">
+        <span className="text-xs text-muted-foreground">
+          {formatNumber(withValue.length)}/{formatNumber(ranked.length)} team có {label}
+        </span>
+        <strong className="text-lg font-bold tabular-nums" title={formatMetric(total, metric)}>{formatCompactMetric(total, metric)}</strong>
+      </div>
+      <ol className="mt-3 max-h-96 space-y-1 overflow-y-auto pr-1" aria-label={`Xếp hạng ${label} giữa các team`}>
+        {withValue.map((item, index) => {
+          const value = item[metric]
+          return (
+            <li key={item.id} className="px-1 py-2">
+              <div className="flex items-center gap-3">
+                <span className="w-6 shrink-0 text-center text-xs font-bold tabular-nums text-muted-foreground">{String(index + 1).padStart(2, '0')}</span>
+                <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground" title={item.name}>{item.name}</span>
+                <span className="shrink-0 text-sm font-bold tabular-nums text-foreground" title={formatMetric(value, metric)}>{formatCompactMetric(value, metric)}</span>
+                <span className="w-12 shrink-0 text-right text-xs tabular-nums text-muted-foreground" title="Tỷ trọng trong tổng">
+                  {percentage(value, total).toLocaleString('vi-VN', { maximumFractionDigits: 1 })}%
+                </span>
+              </div>
+              <span className="mt-1.5 ml-9 block h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden="true">
+                <span
+                  className="block h-full rounded-full transition-[width] duration-300"
+                  style={{ width: `${percentage(value, top)}%`, backgroundColor: METRICS[metric].color }}
+                />
+              </span>
+            </li>
+          )
+        })}
+      </ol>
+      {withoutValue.length ? (
+        <details className="mt-3 border-t border-border pt-3 text-xs text-muted-foreground">
+          <summary className="w-fit cursor-pointer rounded-sm font-medium transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">
+            {formatNumber(withoutValue.length)} team chưa có {label}
+          </summary>
+          <p className="mt-2 leading-5">{withoutValue.map((item) => item.name).join(', ')}</p>
+        </details>
+      ) : null}
+    </>
   )
 }
 

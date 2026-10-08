@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   CalendarPlus,
   CheckCircle2,
@@ -16,12 +16,8 @@ import {
   Eye,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import type { Paginated } from '@/api/access-control'
 import { listDepartments, listTeams } from '@/api/organization'
 import { listPayrollPeriods, listPayrollPeriodYears } from '@/api/payroll-periods'
-import { listRevenue } from '@/api/revenue'
-import { listSalaryRecords } from '@/api/salary'
-import { listTraffic } from '@/api/traffic'
 import { useAuth } from '@/auth/AuthContext'
 import { hasAnyPermission, PAGE_PERMISSIONS } from '@/auth/permission-config'
 import { EmptyState } from '@/components/shared/EmptyState'
@@ -30,13 +26,19 @@ import { MetricCard } from '@/components/shared/MetricCard'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { usePayrollPeriodSelection } from '@/contexts/PayrollPeriodContext'
 
 import { formatCompactMoney, formatMoney, formatNumber, sumAmounts } from '@/lib/format'
 import { selectDefaultPayrollPeriod } from '@/lib/payroll-period'
 import { toneSurface } from '@/lib/tone'
+import {
+  loadDashboardRevenues, loadDashboardSalaries, loadDashboardTraffic, periodDataQuery, type DashboardSalaryRow,
+} from './dashboard-data'
+
+/** Giá trị của lựa chọn "Tất cả kỳ lương trong năm" trong ô chọn kỳ. */
+const WHOLE_YEAR = 'all'
 
 const DashboardCharts = lazy(() => import('./DashboardCharts').then((module) => ({ default: module.DashboardCharts })))
 const MemberDashboard = lazy(() => import('./MemberDashboard').then((module) => ({ default: module.MemberDashboard })))
@@ -47,6 +49,9 @@ export function HomePage() {
   const chosenYear = selectedPeriod?.payrollYear ?? new Date().getFullYear()
   const [chosenDepartmentId, setChosenDepartmentId] = useState('all')
   const [chosenTeamId, setChosenTeamId] = useState('all')
+  // Chế độ cả năm gắn với kỳ đang chọn lúc bật nó: đổi kỳ ở ô chọn kỳ trên thanh trên cùng sẽ tự quay về xem một kỳ.
+  const [wholeYearAnchorId, setWholeYearAnchorId] = useState<string | null>(null)
+  const wholeYear = wholeYearAnchorId !== null && wholeYearAnchorId === selectedPeriodId
   const { user } = useAuth()
   const permissions = user?.permissions ?? []
   const role = user?.roles.map((item) => item.roleName).join(', ') || 'Chưa gán vai trò'
@@ -80,7 +85,22 @@ export function HomePage() {
 
   function changeYear(year: number) {
     const nextPeriod = selectDefaultPayrollPeriod(allPeriods.filter((item) => item.payrollYear === year))
-    if (nextPeriod) selectPeriod(nextPeriod.id)
+    if (!nextPeriod) return
+    selectPeriod(nextPeriod.id)
+    // Đang xem cả năm thì đổi năm vẫn giữ nguyên chế độ cả năm.
+    if (wholeYear) setWholeYearAnchorId(nextPeriod.id)
+  }
+
+  function choosePeriod(value: string) {
+    if (value !== WHOLE_YEAR) {
+      setWholeYearAnchorId(null)
+      selectPeriod(value)
+      return
+    }
+    if (!period) return
+    // Chốt kỳ đang xem thành lựa chọn tường minh, để kỳ mặc định có đổi khi danh sách tải lại cũng không tắt chế độ cả năm.
+    selectPeriod(period.id)
+    setWholeYearAnchorId(period.id)
   }
   const departmentsQuery = useQuery({
     queryKey: ['departments', 'dashboard'],
@@ -96,21 +116,28 @@ export function HomePage() {
   })
   const salaryQuery = useQuery({
     queryKey: ['salary-records', period?.id, 'dashboard-all'],
-    queryFn: () => loadAllPages((page) => listSalaryRecords(period!.id, { page, pageSize: 100 })),
-    enabled: canViewAnalyticsDashboard && canViewSalary && Boolean(period),
+    queryFn: () => loadDashboardSalaries(period!.id),
+    enabled: canViewAnalyticsDashboard && canViewSalary && Boolean(period) && !wholeYear,
     staleTime: 30_000,
   })
   const revenueQuery = useQuery({
     queryKey: ['revenue', period?.id, 'dashboard-all'],
-    queryFn: () => loadAllPages((page) => listRevenue(period!.id, { page, pageSize: 100 })),
-    enabled: canViewAnalyticsDashboard && canViewRevenue && Boolean(period),
+    queryFn: () => loadDashboardRevenues(period!.id),
+    enabled: canViewAnalyticsDashboard && canViewRevenue && Boolean(period) && !wholeYear,
     staleTime: 30_000,
   })
   const trafficQuery = useQuery({
     queryKey: ['traffic', period?.id, 'dashboard-all'],
-    queryFn: () => loadAllPages((page) => listTraffic(period!.id, { page, pageSize: 100 })),
-    enabled: canViewAnalyticsDashboard && canViewTraffic && Boolean(period),
+    queryFn: () => loadDashboardTraffic(period!.id),
+    enabled: canViewAnalyticsDashboard && canViewTraffic && Boolean(period) && !wholeYear,
     staleTime: 30_000,
+  })
+  // Cùng queryKey với biểu đồ xu hướng, nên bật chế độ cả năm không tải lại kỳ nào biểu đồ đã có.
+  const wholeYearPeriods = wholeYear && canViewAnalyticsDashboard
+    ? [...periods].sort((a, b) => a.startDate.localeCompare(b.startDate))
+    : []
+  const wholeYearQueries = useQueries({
+    queries: wholeYearPeriods.map((item) => periodDataQuery(item.id, { canViewSalary, canViewRevenue, canViewTraffic })),
   })
 
   if (!canViewAnalyticsDashboard) {
@@ -131,9 +158,10 @@ export function HomePage() {
     return <PersonalWorkspace role={role} fullName={user?.fullName} permissions={permissions} />
   }
 
-  const allSalaries = salaryQuery.data ?? []
-  const allRevenues = revenueQuery.data ?? []
-  const allTraffic = trafficQuery.data ?? []
+  const wholeYearData = wholeYearQueries.flatMap((query) => query.data ? [query.data] : [])
+  const allSalaries = wholeYear ? wholeYearData.flatMap((item) => item.salaries) : salaryQuery.data ?? []
+  const allRevenues = wholeYear ? wholeYearData.flatMap((item) => item.revenues) : revenueQuery.data ?? []
+  const allTraffic = wholeYear ? wholeYearData.flatMap((item) => item.traffic) : trafficQuery.data ?? []
   const roleTeamIds = new Set(user?.roles.filter((item) => item.scopeType === 'TEAM' && item.scopeTeamId).map((item) => item.scopeTeamId!) ?? [])
   const dataTeamIds = new Set([...allSalaries, ...allRevenues, ...allTraffic].flatMap((item) => item.teamId ? [item.teamId] : []))
   const organizationTeams = (teamsQuery.data ?? []).filter((item) => canViewCompanyDashboard || roleTeamIds.has(item.id) || dataTeamIds.has(item.id))
@@ -153,22 +181,32 @@ export function HomePage() {
   const salaries = allSalaries.filter(inScope)
   const revenues = allRevenues.filter(inScope)
   const traffic = allTraffic.filter(inScope)
-  const employeeTotal = Math.max(salaries.length, revenues.length, traffic.length)
+  // Đếm theo nhân sự chứ không theo dòng: xem cả năm thì mỗi người có một dòng ở từng kỳ.
+  const employeeTotal = new Set([...salaries, ...revenues, ...traffic].map((item) => item.employeeId)).size
   const totalAmount = sumAmounts(salaries.map((item) => item.salaryRecord?.totalSalaryAmount))
   const totalRevenue = sumAmounts(revenues.map((item) => item.officialRevenueAmount))
   const acceptedViews = sumAmounts(traffic.map((item) => item.acceptedViews))
+  const scopeNote = wholeYear ? 'cả năm' : 'trong kỳ'
 
   const loadingPeriods = periodsQuery.isLoading
-  const loadingData = loadingPeriods || departmentsQuery.isLoading || teamsQuery.isLoading || salaryQuery.isLoading || revenueQuery.isLoading || trafficQuery.isLoading
+  const loadingData = loadingPeriods || departmentsQuery.isLoading || teamsQuery.isLoading || (wholeYear
+    ? wholeYearQueries.some((query) => query.isLoading)
+    : salaryQuery.isLoading || revenueQuery.isLoading || trafficQuery.isLoading)
   const refreshing = periodsQuery.isFetching || salaryQuery.isFetching || revenueQuery.isFetching
     || trafficQuery.isFetching || departmentsQuery.isFetching || teamsQuery.isFetching
-  const hasError = periodsQuery.isError || salaryQuery.isError || revenueQuery.isError || trafficQuery.isError || departmentsQuery.isError || teamsQuery.isError
+    || wholeYearQueries.some((query) => query.isFetching)
+  const hasError = periodsQuery.isError || departmentsQuery.isError || teamsQuery.isError || (wholeYear
+    ? wholeYearQueries.some((query) => query.isError || Boolean(query.data?.failedMetrics?.length))
+    : salaryQuery.isError || revenueQuery.isError || trafficQuery.isError)
 
   function refreshAll() {
     void periodsQuery.refetch()
-    void salaryQuery.refetch()
-    void revenueQuery.refetch()
-    void trafficQuery.refetch()
+    // Ở chế độ cả năm, dữ liệu từng kỳ nằm trong 'dashboard-chart-history' và được làm mới ở dưới.
+    if (!wholeYear) {
+      void salaryQuery.refetch()
+      void revenueQuery.refetch()
+      void trafficQuery.refetch()
+    }
     void departmentsQuery.refetch()
     void teamsQuery.refetch()
     void queryClient.invalidateQueries({ queryKey: ['dashboard-chart-history'] })
@@ -176,26 +214,33 @@ export function HomePage() {
   }
 
   function exportSalaryCsv() {
-    const rows = [
-      ['Mã nhân sự', 'Nhân sự', 'Team', 'Trạng thái', 'Tổng lương'],
-      ...salaries.map((item) => [item.employeeCode, item.employeeName, item.teamName ?? '', item.salaryRecord?.status ?? 'CHƯA TÍNH', item.salaryRecord?.totalSalaryAmount ?? '']),
-    ]
-    downloadCsv(`tong-quan-luong-${period?.code ?? 'chua-co-ky'}.csv`, rows)
+    const header = ['Mã nhân sự', 'Nhân sự', 'Team', 'Trạng thái', 'Tổng lương']
+    const salaryRow = (item: DashboardSalaryRow) => [item.employeeCode, item.employeeName, item.teamName ?? '', item.salaryRecord?.status ?? 'CHƯA TÍNH', item.salaryRecord?.totalSalaryAmount ?? '']
+    // Cả năm thì giữ từng dòng theo kỳ và thêm cột kỳ lương, để file đối chiếu lại được với bảng lương từng tháng.
+    const rows = wholeYear
+      ? [['Kỳ lương', ...header], ...wholeYearPeriods.flatMap((item, index) => (wholeYearQueries[index]?.data?.salaries ?? []).filter(inScope).map((row) => [item.name, ...salaryRow(row)]))]
+      : [header, ...salaries.map(salaryRow)]
+    downloadCsv(wholeYear ? `tong-quan-luong-nam-${chosenYear}.csv` : `tong-quan-luong-${period?.code ?? 'chua-co-ky'}.csv`, rows)
   }
 
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
-        eyebrow={period ? `${canViewTeamDashboard && !canViewCompanyDashboard ? 'Tổng quan team' : 'Kỳ lương'} · ${period.code}` : 'Trung tâm điều hành'}
+        eyebrow={period ? `${canViewTeamDashboard && !canViewCompanyDashboard ? 'Tổng quan team' : 'Kỳ lương'} · ${wholeYear ? `Cả năm ${chosenYear}` : period.code}` : 'Trung tâm điều hành'}
         title={period ? `Tổng quan năm ${chosenYear}` : `Chưa có kỳ lương năm ${chosenYear}`}
-        description={period
-          ? `Lương, doanh thu và traffic của ${period.name.toLowerCase()}, kèm xu hướng 12 tháng.`
-          : 'Chọn một năm có dữ liệu để xem tổng quan và xu hướng theo tháng.'}
+        description={!period
+          ? 'Chọn một năm có dữ liệu để xem tổng quan và xu hướng theo tháng.'
+          : wholeYear
+            ? `Lương, doanh thu và traffic cộng dồn ${formatNumber(periods.length)} kỳ lương năm ${chosenYear}, kèm xu hướng theo tháng.`
+            : `Lương, doanh thu và traffic của ${period.name.toLowerCase()}, kèm xu hướng 12 tháng.`}
         meta={period ? (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
-            <ShieldCheck className="size-3.5" aria-hidden="true" />
-            {role}
-          </span>
+          <>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+              <ShieldCheck className="size-3.5" aria-hidden="true" />
+              {role}
+            </span>
+            <span className="text-xs text-muted-foreground">{loadingData ? 'Đang tải…' : `${formatNumber(employeeTotal)} nhân sự`}</span>
+          </>
         ) : null}
         action={(
           <div className="flex flex-wrap items-center gap-2">
@@ -212,40 +257,44 @@ export function HomePage() {
             </Button>
           </div>
         )}
+        filtersLabel="Bộ lọc tổng quan"
+        filters={(
+          // 4 ô trên một hàng khi header đủ chỗ; hẹp hơn thì lưới 2 cột rồi 1 cột. `@3xl` theo container của PageHeader.
+          <div className="grid w-full gap-2 sm:grid-cols-2 @3xl:flex @3xl:w-auto">
+            <Select value={String(chosenYear)} onValueChange={(value) => changeYear(Number(value))}>
+              <SelectTrigger className="w-full @3xl:w-30" aria-label="Chọn năm thống kê"><SelectValue /></SelectTrigger>
+              <SelectContent>{availableYears.map((year) => <SelectItem key={year} value={String(year)}>Năm {year}</SelectItem>)}</SelectContent>
+            </Select>
+            {period ? <Select value={wholeYear ? WHOLE_YEAR : period.id} onValueChange={choosePeriod}>
+              <SelectTrigger className="w-full @3xl:w-56" aria-label="Chọn kỳ lương"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={WHOLE_YEAR}>Tất cả kỳ lương trong năm</SelectItem>
+                <SelectSeparator />
+                {periods.map((item) => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}
+              </SelectContent>
+            </Select> : null}
+            {!canViewCompanyDashboard && teamId !== 'all' ? (
+              <span className="inline-flex min-h-9 min-w-0 items-center rounded-lg bg-muted px-3 text-sm font-medium text-foreground @3xl:max-w-50">
+                <span className="truncate">{visibleTeams.find((item) => item.id === teamId)?.name ?? 'Team của tôi'}</span>
+              </span>
+            ) : null}
+            {period && canViewCompanyDashboard ? <Select value={departmentId} onValueChange={(value) => { setChosenDepartmentId(value); setChosenTeamId('all') }} disabled={departmentsQuery.isLoading}>
+              <SelectTrigger className="w-full @3xl:w-44" aria-label="Chọn phòng ban"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {canViewCompanyDashboard || departments.length > 1 ? <SelectItem value="all">Tất cả phòng ban</SelectItem> : null}
+                {departments.map((item) => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}
+              </SelectContent>
+            </Select> : null}
+            {period && canViewCompanyDashboard ? <Select value={teamId} onValueChange={setChosenTeamId} disabled={departmentId === 'all' || visibleTeams.length === 0}>
+              <SelectTrigger className="w-full @3xl:w-50" aria-label="Chọn team"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {canViewCompanyDashboard || visibleTeams.length > 1 ? <SelectItem value="all">{departmentId === 'all' ? 'Chọn phòng ban trước' : 'Tất cả team'}</SelectItem> : null}
+                {visibleTeams.map((item) => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}
+              </SelectContent>
+            </Select> : null}
+          </div>
+        )}
       />
-
-      {availableYears.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card px-3 py-2.5" aria-label="Bộ lọc tổng quan">
-          <Select value={String(chosenYear)} onValueChange={(value) => changeYear(Number(value))}>
-            <SelectTrigger className="w-full sm:w-30" aria-label="Chọn năm thống kê"><SelectValue /></SelectTrigger>
-            <SelectContent>{availableYears.map((year) => <SelectItem key={year} value={String(year)}>Năm {year}</SelectItem>)}</SelectContent>
-          </Select>
-          {period ? <Select value={period.id} onValueChange={selectPeriod}>
-            <SelectTrigger className="w-full sm:w-46" aria-label="Chọn kỳ lương"><SelectValue /></SelectTrigger>
-            <SelectContent>{periods.map((item) => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}</SelectContent>
-          </Select> : null}
-          {!canViewCompanyDashboard && teamId !== 'all' ? (
-            <span className="inline-flex min-h-9 items-center rounded-lg bg-muted px-3 text-sm font-medium text-foreground">
-              {visibleTeams.find((item) => item.id === teamId)?.name ?? 'Team của tôi'}
-            </span>
-          ) : null}
-          {period && canViewCompanyDashboard ? <Select value={departmentId} onValueChange={(value) => { setChosenDepartmentId(value); setChosenTeamId('all') }} disabled={departmentsQuery.isLoading}>
-            <SelectTrigger className="w-full sm:w-46" aria-label="Chọn phòng ban"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {canViewCompanyDashboard || departments.length > 1 ? <SelectItem value="all">Tất cả phòng ban</SelectItem> : null}
-              {departments.map((item) => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}
-            </SelectContent>
-          </Select> : null}
-          {period && canViewCompanyDashboard ? <Select value={teamId} onValueChange={setChosenTeamId} disabled={departmentId === 'all' || visibleTeams.length === 0}>
-            <SelectTrigger className="w-full sm:w-46" aria-label="Chọn team"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {canViewCompanyDashboard || visibleTeams.length > 1 ? <SelectItem value="all">{departmentId === 'all' ? 'Chọn phòng ban trước' : 'Tất cả team'}</SelectItem> : null}
-              {visibleTeams.map((item) => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}
-            </SelectContent>
-          </Select> : null}
-          {period ? <span className="text-xs text-muted-foreground sm:ml-auto sm:pr-1">{loadingData ? 'Đang tải…' : `${formatNumber(employeeTotal)} nhân sự`}</span> : null}
-        </div>
-      ) : null}
 
       {hasError ? (
         <ErrorState
@@ -274,7 +323,7 @@ export function HomePage() {
                 label="Quỹ lương"
                 value={formatCompactMoney(totalAmount)}
                 valueTitle={formatMoney(totalAmount)}
-                note="Tổng bảng lương đã tính trong kỳ"
+                note={`Tổng bảng lương đã tính ${scopeNote}`}
                 loading={loadingData}
                 href="/salary-records"
               />
@@ -285,7 +334,7 @@ export function HomePage() {
                 tone="info"
                 label="Tỷ lệ lương / doanh thu"
                 value={totalRevenue > 0 ? `${((totalAmount / totalRevenue) * 100).toLocaleString('vi-VN', { maximumFractionDigits: 1 })}%` : '—'}
-                note="Chi phí lương trên doanh thu trong kỳ"
+                note={`Chi phí lương trên doanh thu ${scopeNote}`}
                 loading={loadingData}
               />
             ) : null}
@@ -296,7 +345,7 @@ export function HomePage() {
                 label="Doanh thu"
                 value={formatCompactMoney(totalRevenue)}
                 valueTitle={formatMoney(totalRevenue)}
-                note="Doanh thu chính thức ghi nhận trong kỳ"
+                note={`Doanh thu chính thức ghi nhận ${scopeNote}`}
                 loading={loadingData}
                 href="/traffic-revenue"
               />
@@ -307,7 +356,7 @@ export function HomePage() {
                 tone="info"
                 label="Traffic hợp lệ"
                 value={formatNumber(acceptedViews)}
-                note="Lượt xem đã duyệt trong kỳ"
+                note={`Lượt xem đã duyệt ${scopeNote}`}
                 loading={loadingData}
                 href="/traffic-revenue"
               />
@@ -319,7 +368,8 @@ export function HomePage() {
           {period && !loadingData ? (
             <Suspense fallback={<Skeleton className="h-80 w-full rounded-xl" />}><DashboardCharts
               periods={periods}
-              period={period}
+              period={wholeYear ? null : period}
+              year={chosenYear}
               departmentId={departmentId}
               selectedDepartmentName={departments.find((item) => item.id === departmentId)?.name}
               teamId={teamId}
@@ -407,13 +457,6 @@ function PersonalWorkspace({ role, fullName, permissions }: { role: string; full
       )}
     </div>
   )
-}
-
-async function loadAllPages<T>(fetchPage: (page: number) => Promise<Paginated<T>>) {
-  const first = await fetchPage(1)
-  if (first.meta.totalPages <= 1) return first.data
-  const rest = await Promise.all(Array.from({ length: first.meta.totalPages - 1 }, (_, index) => fetchPage(index + 2)))
-  return [first, ...rest].flatMap((page) => page.data)
 }
 
 function downloadCsv(filename: string, rows: string[][]) {
