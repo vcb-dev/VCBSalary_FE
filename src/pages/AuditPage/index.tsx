@@ -60,6 +60,7 @@ const ACTION_META: Record<string, ActionMeta> = {
   PAYROLL_PERIOD_CLOSED: action('Đóng kỳ lương', 'Kỳ lương đã được đóng.', 'Kỳ lương', 'success'),
   TRAFFIC_CREATED: action('Nhập traffic', 'Số lượt xem của một nền tảng đã được ghi nhận.', 'Traffic', 'success'),
   TRAFFIC_UPDATED: action('Cập nhật traffic', 'Số lượt xem hoặc minh chứng đã được thay đổi.', 'Traffic'),
+  TRAFFIC_DELETED: action('Xóa traffic nền tảng khác', 'Một nền tảng nhập thêm đã được gỡ khỏi kỳ lương.', 'Traffic', 'warning'),
   REVENUE_CREATED: action('Nhập doanh thu', 'Doanh thu chính thức của nhân sự đã được ghi nhận.', 'Doanh thu', 'success'),
   REVENUE_UPDATED: action('Cập nhật doanh thu', 'Doanh thu chính thức của nhân sự đã được thay đổi.', 'Doanh thu'),
   BASE_SALARY_HISTORY_CREATED: action('Thiết lập lương cơ bản', 'Một mức lương cơ bản mới đã được tạo.', 'Cấu hình lương', 'success'),
@@ -133,6 +134,7 @@ const FIELD_LABELS: Record<string, string> = {
   effectiveFrom: 'Áp dụng từ ngày',
   effectiveTo: 'Áp dụng đến ngày',
   platform: 'Nền tảng',
+  platformName: 'Tên nền tảng',
   kpiGroupId: 'Nhóm KPI áp dụng',
   rewardRuleSetId: 'Bộ quy tắc thưởng',
   rewardRuleSetVersion: 'Phiên bản quy tắc thưởng',
@@ -610,7 +612,7 @@ function referenceLabels(items: Array<{ id: string; name: string }> | undefined,
 }
 
 const VALUE_LABELS: Record<string, string> = {
-  AUTOMATION_GEN_VIDEO: 'VCBI', MANUAL: 'Nhập thủ công', DRAFT: 'Bản nháp', OPEN: 'Đang mở', IN_REVIEW: 'Đang duyệt', CLOSED: 'Đã đóng', PENDING: 'Chờ xử lý', APPROVED: 'Đã duyệt', REJECTED: 'Bị từ chối', CONFIRMED: 'Đã xác nhận', ACTIVE: 'Đang hoạt động', INACTIVE: 'Ngừng hoạt động', LEFT: 'Đã nghỉ việc', LOCKED: 'Đã khóa', ARCHIVED: 'Đã lưu trữ', SUPERSEDED: 'Đã thay thế', WARNING: 'Có cảnh báo', SUCCESS: 'Thành công', FAILED: 'Thất bại', PARTIAL: 'Hoàn tất một phần', TIKTOK: 'TikTok', FACEBOOK: 'Facebook', YOUTUBE: 'YouTube', INSTAGRAM: 'Instagram',
+  AUTOMATION_GEN_VIDEO: 'VCBI', MANUAL: 'Nhập thủ công', DRAFT: 'Bản nháp', OPEN: 'Đang mở', IN_REVIEW: 'Đang duyệt', CLOSED: 'Đã đóng', PENDING: 'Chờ xử lý', APPROVED: 'Đã duyệt', REJECTED: 'Bị từ chối', CONFIRMED: 'Đã xác nhận', ACTIVE: 'Đang hoạt động', INACTIVE: 'Ngừng hoạt động', LEFT: 'Đã nghỉ việc', LOCKED: 'Đã khóa', ARCHIVED: 'Đã lưu trữ', SUPERSEDED: 'Đã thay thế', WARNING: 'Có cảnh báo', SUCCESS: 'Thành công', FAILED: 'Thất bại', PARTIAL: 'Hoàn tất một phần', TIKTOK: 'TikTok', FACEBOOK: 'Facebook', YOUTUBE: 'YouTube', INSTAGRAM: 'Instagram', OTHER: 'Nền tảng khác',
 }
 function formatTime(value: string) { return new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit' }).format(new Date(value)) }
 function formatDate(value: string) { return new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(value)) }

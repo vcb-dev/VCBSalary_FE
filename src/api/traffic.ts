@@ -1,7 +1,8 @@
 import type { Paginated } from '@/api/access-control'
 import { api } from '@/api/client'
 
-export type TrafficPlatform = 'TIKTOK' | 'FACEBOOK' | 'YOUTUBE' | 'INSTAGRAM'
+// OTHER = nền tảng nhập tay ngoài danh sách cố định, tên nằm ở TrafficRecord.platformName.
+export type TrafficPlatform = 'TIKTOK' | 'FACEBOOK' | 'YOUTUBE' | 'INSTAGRAM' | 'OTHER'
 export type SelfConfirmationStatus = 'DRAFT' | 'CONFIRMED'
 export type LeaderReviewStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
 
@@ -23,6 +24,8 @@ export type TrafficAttachment = {
 export type TrafficRecord = {
   id: string | null
   platform: TrafficPlatform
+  /** Chỉ có với nền tảng OTHER; nền tảng cố định là null. */
+  platformName: string | null
   views: string
   selfConfirmationStatus: SelfConfirmationStatus
   selfConfirmedBy: TrafficActor | null
@@ -94,6 +97,33 @@ export async function putEmployeeTraffic(
     input,
   )
   return data
+}
+
+export type CustomTrafficInput = {
+  platformName: string
+  views: string
+  attachmentIds?: string[]
+}
+
+export async function createCustomTraffic(
+  periodId: string,
+  employeeId: string,
+  input: CustomTrafficInput,
+) {
+  const { data } = await api.post<TrafficRecord>(
+    `/payroll-periods/${periodId}/employees/${employeeId}/traffic/custom`,
+    input,
+  )
+  return data
+}
+
+export async function updateCustomTraffic(id: string, input: CustomTrafficInput) {
+  const { data } = await api.put<TrafficRecord>(`/employee-traffic-records/${id}`, input)
+  return data
+}
+
+export async function deleteCustomTraffic(id: string) {
+  await api.delete(`/employee-traffic-records/${id}`)
 }
 
 export async function selfConfirmTraffic(id: string) {
