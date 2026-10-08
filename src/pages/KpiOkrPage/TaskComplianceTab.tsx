@@ -4,17 +4,23 @@ import {
   AlertTriangle,
   CalendarDays,
   CheckCircle2,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
+  CircleDashed,
   Clock3,
   ListChecks,
   Target,
+  XCircle,
+  type LucideIcon,
 } from 'lucide-react'
 import { getApiErrorMessage } from '@/api/client'
 import {
   getTaskCompliance,
+  type TaskComplianceDay,
   type TaskComplianceRecord,
   type TaskComplianceSource,
+  type TaskComplianceTask,
 } from '@/api/task-compliance'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { ErrorState } from '@/components/shared/ErrorState'
@@ -23,14 +29,34 @@ import { StatusBadge } from '@/components/shared/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { formatDate, formatDateTime, formatNumber, toPercent } from '@/lib/format'
-import { toneSurface } from '@/lib/tone'
+import { formatDate, formatNumber, toPercent } from '@/lib/format'
+import { toneSurface, toneText, type Tone } from '@/lib/tone'
 
-const PAGE_SIZE = 20
+// Phân trang theo ngày: một kỳ lương tháng nằm gọn trong một trang.
+const PAGE_SIZE = 31
 const SOURCE_LABEL: Record<TaskComplianceSource, string> = {
   AUTO_A4: 'Task A4 tự động',
   DAILY_PLAN: 'Kế hoạch tuyến',
+}
+
+// work_date là ngày thuần nên đọc theo UTC để không lệch ngày; mốc giờ thì theo giờ Việt Nam như VCBI.
+const dayHeadingFormatter = new Intl.DateTimeFormat('vi-VN', {
+  weekday: 'long', day: '2-digit', month: '2-digit', timeZone: 'UTC',
+})
+const timeFormatter = new Intl.DateTimeFormat('vi-VN', {
+  hour: '2-digit', minute: '2-digit', hourCycle: 'h23', day: '2-digit', month: '2-digit', timeZone: 'Asia/Ho_Chi_Minh',
+})
+
+function formatDayHeading(value: string) {
+  const label = dayHeadingFormatter.format(new Date(`${value}T00:00:00Z`))
+  return label.charAt(0).toUpperCase() + label.slice(1)
+}
+
+/** "2026-10-05T10:00:00Z" → "17:00 05/10". Tự ghép vì ICU vi-VN in ngày-tháng 2 chữ số thành "05-10". */
+function formatTime(value: string | null) {
+  if (!value) return '—'
+  const parts = Object.fromEntries(timeFormatter.formatToParts(new Date(value)).map((part) => [part.type, part.value]))
+  return `${parts.hour}:${parts.minute} ${parts.day}/${parts.month}`
 }
 
 type Props = {
@@ -41,10 +67,12 @@ type Props = {
 
 export function TaskComplianceTab({ periodId, employeeId, teamId }: Props) {
   const [page, setPage] = useState(1)
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
 
   useEffect(() => {
     // oxlint-disable-next-line react/set-state-in-effect -- đổi hồ sơ phải quay về trang đầu
     setPage(1)
+    setExpanded(new Set())
   }, [periodId, employeeId, teamId])
 
   const complianceQuery = useQuery({
@@ -53,6 +81,19 @@ export function TaskComplianceTab({ periodId, employeeId, teamId }: Props) {
     enabled: Boolean(periodId && employeeId),
     staleTime: 60_000,
   })
+
+  function changePage(next: number) {
+    setPage(next)
+    setExpanded(new Set())
+  }
+  function toggle(key: string) {
+    setExpanded((current) => {
+      const next = new Set(current)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
 
   if (!periodId || !employeeId) {
     return (
@@ -78,7 +119,7 @@ export function TaskComplianceTab({ periodId, employeeId, teamId }: Props) {
   }
 
   const data = complianceQuery.data!
-  const { summary, coverage, pagination, records } = data
+  const { summary, shortfall_summary: shortfall, coverage, pagination, days } = data
 
   return (
     <div className="flex flex-col gap-4" aria-busy={complianceQuery.isFetching}>
@@ -103,13 +144,13 @@ export function TaskComplianceTab({ periodId, employeeId, teamId }: Props) {
           tone={summary.missing > 0 ? 'danger' : 'success'}
           label="Nhiệm vụ còn thiếu"
           value={formatNumber(summary.missing)}
-          note={summary.missing > 0 ? `${formatNumber(summary.affected_records)} dòng bị ảnh hưởng` : 'Không có nhiệm vụ tồn đọng'}
+          note={summary.missing > 0 ? `${formatNumber(shortfall.lines)} tuyến bị thiếu` : 'Không có nhiệm vụ tồn đọng'}
         />
         <MetricCard
           icon={CalendarDays}
-          tone={summary.affected_days > 0 ? 'warning' : 'success'}
+          tone={shortfall.person_days > 0 ? 'warning' : 'success'}
           label="Ngày bị thiếu"
-          value={formatNumber(summary.affected_days)}
+          value={formatNumber(shortfall.person_days)}
           note={`Dữ liệu đến ${formatDate(coverage.evaluated_through)}`}
         />
       </section>
@@ -125,13 +166,11 @@ export function TaskComplianceTab({ periodId, employeeId, teamId }: Props) {
         <CardContent className="p-0">
           <div className="flex flex-col gap-2 border-b p-5 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
-              <h2 className="text-base font-semibold tracking-tight text-foreground">Chi tiết nhiệm vụ chưa đạt</h2>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {data.local_context.team_name} · {formatDate(data.range.from)}–{formatDate(data.range.to)} · chốt gần nhất {formatDateTime(data.generated_at)}
-              </p>
+              <h2 className="text-base font-semibold tracking-tight text-foreground">Nhiệm vụ còn thiếu theo ngày</h2>
+              <p className="mt-1 text-xs text-muted-foreground">Bấm vào một ngày để xem thiếu tuyến nào, task nào.</p>
             </div>
             <StatusBadge tone={summary.missing > 0 ? 'danger' : 'success'}>
-              {formatNumber(pagination.total)} bản ghi
+              {formatNumber(pagination.total)} ngày bị thiếu
             </StatusBadge>
           </div>
 
@@ -140,7 +179,7 @@ export function TaskComplianceTab({ periodId, employeeId, teamId }: Props) {
               icon={Clock3}
               tone="warning"
               title="Chưa có dữ liệu đã chốt"
-              description="AutomationGenVideo chưa tạo snapshot đánh giá cho nhân sự này trong kỳ. Dữ liệu sẽ xuất hiện sau lần chốt tiếp theo."
+              description="VCBI chưa tạo snapshot đánh giá cho nhân sự này trong kỳ. Dữ liệu sẽ xuất hiện sau lần chốt tiếp theo."
             />
           ) : summary.missing === 0 ? (
             <EmptyState
@@ -149,36 +188,19 @@ export function TaskComplianceTab({ periodId, employeeId, teamId }: Props) {
               title="Không ghi nhận nhiệm vụ thiếu"
               description={`Dữ liệu đã được đánh giá đến ${formatDate(coverage.evaluated_through)} và không có nhiệm vụ tồn đọng trong kỳ.`}
             />
-          ) : records.length === 0 ? (
+          ) : days.length === 0 ? (
             <EmptyState
               icon={ListChecks}
-              title="Trang này không còn bản ghi"
+              title="Trang này không còn ngày nào"
               description="Dữ liệu nguồn có thể vừa được cập nhật. Quay về trang đầu để xem danh sách mới nhất."
-              action={<Button variant="outline" onClick={() => setPage(1)}>Về trang đầu</Button>}
+              action={<Button variant="outline" onClick={() => changePage(1)}>Về trang đầu</Button>}
             />
           ) : (
-            <>
-              <div className="hidden md:block">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Ngày làm việc</TableHead>
-                      <TableHead>Tuyến nội dung</TableHead>
-                      <TableHead>Nguồn</TableHead>
-                      <TableHead className="text-right">Đúng hạn / Phải làm</TableHead>
-                      <TableHead className="text-right">Còn thiếu</TableHead>
-                      <TableHead>Hạn hoàn thành</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {records.map((record) => <ComplianceRow key={record.id} record={record} />)}
-                  </TableBody>
-                </Table>
-              </div>
-              <div className="divide-y md:hidden">
-                {records.map((record) => <ComplianceMobileCard key={record.id} record={record} />)}
-              </div>
-            </>
+            <ul className="divide-y">
+              {days.map((day) => (
+                <DayItem key={day.key} day={day} open={expanded.has(day.key)} onToggle={() => toggle(day.key)} />
+              ))}
+            </ul>
           )}
 
           {pagination.total_pages > 1 ? (
@@ -187,11 +209,11 @@ export function TaskComplianceTab({ periodId, employeeId, teamId }: Props) {
                 Trang {formatNumber(pagination.page)} / {formatNumber(pagination.total_pages)}
               </p>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page <= 1 || complianceQuery.isFetching}>
+                <Button variant="outline" size="sm" onClick={() => changePage(Math.max(1, page - 1))} disabled={page <= 1 || complianceQuery.isFetching}>
                   <ChevronLeft className="size-4" aria-hidden="true" />
                   Trước
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => setPage((current) => current + 1)} disabled={page >= pagination.total_pages || complianceQuery.isFetching}>
+                <Button variant="outline" size="sm" onClick={() => changePage(page + 1)} disabled={page >= pagination.total_pages || complianceQuery.isFetching}>
                   Sau
                   <ChevronRight className="size-4" aria-hidden="true" />
                 </Button>
@@ -204,40 +226,137 @@ export function TaskComplianceTab({ periodId, employeeId, teamId }: Props) {
   )
 }
 
-function ComplianceRow({ record }: { record: TaskComplianceRecord }) {
+function DayItem({ day, open, onToggle }: { day: TaskComplianceDay; open: boolean; onToggle: () => void }) {
+  const panelId = `compliance-day-${day.key}`
+  const shortLines = day.lines.filter((line) => line.missing_count > 0)
+
   return (
-    <TableRow>
-      <TableCell className="font-medium">{formatDate(record.work_date)}</TableCell>
-      <TableCell>{record.content_line.name}</TableCell>
-      <TableCell><StatusBadge tone="info">{SOURCE_LABEL[record.source]}</StatusBadge></TableCell>
-      <TableCell className="text-right tabular-nums">{formatNumber(record.completed_count)} / {formatNumber(record.expected_count)}</TableCell>
-      <TableCell className="text-right"><StatusBadge tone="danger">Thiếu {formatNumber(record.missing_count)}</StatusBadge></TableCell>
-      <TableCell className="text-muted-foreground">{formatDateTime(record.deadline)}</TableCell>
-    </TableRow>
+    <li>
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={panelId}
+        onClick={onToggle}
+        className={`flex w-full cursor-pointer items-center gap-3 px-5 py-3.5 text-left transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset ${open ? 'bg-muted/40' : ''}`}
+      >
+        <span className="min-w-0 flex-1 sm:flex sm:items-center sm:gap-4">
+          <span className="block shrink-0 sm:w-44">
+            <span className="block font-semibold text-foreground">{formatDayHeading(day.work_date)}</span>
+            <span className="mt-0.5 block text-xs text-muted-foreground tabular-nums">
+              Đúng hạn {formatNumber(day.completed_count)}/{formatNumber(day.expected_count)}
+            </span>
+          </span>
+          <span className="mt-2 flex flex-wrap gap-1.5 sm:mt-0">
+            {shortLines.map((line) => (
+              <span key={line.id} className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs whitespace-nowrap">
+                <span className="font-semibold text-foreground">{line.content_line.name}</span>
+                <span className={toneText.danger}>thiếu {formatNumber(line.missing_count)}</span>
+              </span>
+            ))}
+          </span>
+        </span>
+        <StatusBadge tone="danger">Thiếu {formatNumber(day.missing_count)}</StatusBadge>
+        <ChevronDown className={`size-4 shrink-0 text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
+      </button>
+
+      {open ? <DayDetail id={panelId} day={day} /> : null}
+    </li>
   )
 }
 
-function ComplianceMobileCard({ record }: { record: TaskComplianceRecord }) {
+/**
+ * Một danh sách tuyến duy nhất thay vì mỗi tuyến một thẻ: thẻ hai cột lệch chiều cao để lại khoảng
+ * trống, còn hạn nộp và nhãn đỏ lặp ở mọi thẻ làm khó nhìn ra tuyến nào thiếu gì.
+ */
+function DayDetail({ id, day }: { id: string; day: TaskComplianceDay }) {
+  // Các tuyến trong ngày thường chung một hạn; khi đó chỉ ghi một lần ở đầu.
+  const sharedDeadline = new Set(day.lines.map((line) => line.deadline)).size === 1 ? day.lines[0]?.deadline ?? null : null
+  // Số trên dòng ngày chỉ cộng tuyến thiếu; chỉ nhắc "cả ngày" khi có thêm tuyến đã đủ.
+  const hasFullLines = day.day_total.expected !== day.expected_count
+
   return (
-    <article className="space-y-3 p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="font-semibold text-foreground">{record.content_line.name}</p>
-          <p className="mt-1 text-xs text-muted-foreground">{formatDate(record.work_date)} · {SOURCE_LABEL[record.source]}</p>
+    <div id={id} className="space-y-3 border-t bg-muted/30 px-5 py-4">
+      <p className="text-xs text-muted-foreground">
+        {sharedDeadline ? <>Hạn nộp <span className="font-medium text-foreground">{formatTime(sharedDeadline)}</span> · </> : null}
+        {hasFullLines ? (
+          <>Cả ngày, gồm tuyến đã đủ: đúng hạn <span className="font-medium text-foreground tabular-nums">{formatNumber(day.day_total.completed)}/{formatNumber(day.day_total.expected)}</span> · </>
+        ) : null}
+        Số thiếu chốt lúc hết hạn, trạng thái task tính đến hiện tại.
+      </p>
+      <ul className="divide-y rounded-lg border bg-card">
+        {day.lines.map((line) => <LineRow key={line.id} line={line} showDeadline={!sharedDeadline} />)}
+      </ul>
+    </div>
+  )
+}
+
+function LineRow({ line, showDeadline }: { line: TaskComplianceRecord; showDeadline: boolean }) {
+  const isShort = line.missing_count > 0
+  return (
+    <li className="grid grid-cols-1 gap-x-6 gap-y-2.5 px-4 py-3 sm:grid-cols-[13rem_minmax(0,1fr)]">
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="font-semibold text-foreground">{line.content_line.name}</span>
+          {isShort
+            ? <StatusBadge tone="danger">Thiếu {formatNumber(line.missing_count)}</StatusBadge>
+            : <StatusBadge tone="success">Đủ</StatusBadge>}
         </div>
-        <StatusBadge tone="danger">Thiếu {formatNumber(record.missing_count)}</StatusBadge>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          {SOURCE_LABEL[line.source]} · đúng hạn{' '}
+          <span className="tabular-nums">{formatNumber(line.completed_count)}/{formatNumber(line.expected_count)}</span>
+          {showDeadline ? <> · hạn {formatTime(line.deadline)}</> : null}
+        </p>
       </div>
-      <dl className="grid grid-cols-2 gap-3 text-xs">
-        <div>
-          <dt className="text-muted-foreground">Đúng hạn / Phải làm</dt>
-          <dd className="mt-1 font-semibold tabular-nums">{formatNumber(record.completed_count)} / {formatNumber(record.expected_count)}</dd>
-        </div>
-        <div>
-          <dt className="text-muted-foreground">Hạn hoàn thành</dt>
-          <dd className="mt-1 font-semibold">{formatDateTime(record.deadline)}</dd>
-        </div>
-      </dl>
-    </article>
+
+      {isShort ? (
+        <ul className="space-y-2 sm:pt-0.5">
+          {line.tasks.map((task) => <TaskItem key={task.id} task={task} />)}
+          {line.untracked_missing > 0 ? (
+            <li className="flex items-center gap-2.5 text-sm text-muted-foreground">
+              <CircleDashed className={`size-4 shrink-0 ${toneText.danger}`} aria-hidden="true" />
+              {line.source === 'DAILY_PLAN'
+                ? `Chưa tạo ${formatNumber(line.untracked_missing)} task cho tuyến này`
+                : `${formatNumber(line.untracked_missing)} task đã bị huỷ hoặc xoá sau khi giao`}
+            </li>
+          ) : null}
+          {!line.tasks.length && !line.untracked_missing ? (
+            <li className="text-sm text-muted-foreground">Không còn task nào của tuyến này trong ngày.</li>
+          ) : null}
+        </ul>
+      ) : null}
+    </li>
+  )
+}
+
+function taskState(task: TaskComplianceTask): { label: string; tone: Tone; icon: LucideIcon } {
+  if (task.on_time) return { label: 'Đúng hạn', tone: 'success', icon: CheckCircle2 }
+  if ((task.status === 'SUBMITTED' || task.status === 'APPROVED') && task.submitted_at) {
+    return { label: `Nộp trễ ${formatTime(task.submitted_at)}`, tone: 'warning', icon: Clock3 }
+  }
+  if (task.status === 'REJECTED') return { label: 'Bị từ chối', tone: 'danger', icon: XCircle }
+  if (task.status === 'IN_PROGRESS') return { label: 'Đang làm, chưa nộp', tone: 'danger', icon: CircleDashed }
+  return { label: 'Chưa nộp', tone: 'danger', icon: CircleDashed }
+}
+
+function TaskItem({ task }: { task: TaskComplianceTask }) {
+  const state = taskState(task)
+  const Icon = state.icon
+  const primary = task.title ?? task.product_name ?? 'Task chưa gắn content'
+  const secondary = task.title
+    ? task.product_name && `SP: ${task.product_name}`
+    : task.product_name && 'Chưa chọn content'
+  return (
+    <li className="flex items-start gap-2.5">
+      <Icon className={`mt-0.5 size-4 shrink-0 ${toneText[state.tone]}`} aria-hidden="true" />
+      <div className="min-w-0">
+        {/* Nhãn đi liền sau tên task: đẩy sang mép phải thì ở màn rộng mắt phải lướt cả nghìn pixel. */}
+        <p className="text-sm">
+          <span className={task.on_time ? 'text-muted-foreground' : 'font-medium text-foreground'}>{primary}</span>
+          <span className={`ml-2 text-xs font-medium whitespace-nowrap ${toneText[state.tone]}`}>{state.label}</span>
+        </p>
+        {secondary ? <p className="text-xs text-muted-foreground">{secondary}</p> : null}
+      </div>
+    </li>
   )
 }
 
@@ -249,7 +368,12 @@ function ComplianceSkeleton() {
           <Card key={index} className="py-0"><CardContent className="space-y-3 p-4"><Skeleton className="h-4 w-28" /><Skeleton className="h-7 w-20" /><Skeleton className="h-3 w-full" /></CardContent></Card>
         ))}
       </div>
-      <Card className="py-0"><CardContent className="space-y-3 p-5"><Skeleton className="h-5 w-52" /><Skeleton className="h-40 w-full" /></CardContent></Card>
+      <Card className="py-0">
+        <CardContent className="space-y-3 p-5">
+          <Skeleton className="h-5 w-52" />
+          {Array.from({ length: 4 }).map((_, index) => <Skeleton key={index} className="h-12 w-full" />)}
+        </CardContent>
+      </Card>
     </div>
   )
 }
