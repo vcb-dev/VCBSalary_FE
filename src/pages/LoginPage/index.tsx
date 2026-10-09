@@ -8,22 +8,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useAuth } from '@/auth/AuthContext'
-
-const DEMO_ACCOUNTS = [
-  { label: 'Quản trị viên', email: 'admin@vcbsalary.vn' },
-  { label: 'Nhân sự', email: 'hr@vcbsalary.vn' },
-  { label: 'Kế toán', email: 'accountant@vcbsalary.vn' },
-  { label: 'Quản lý duyệt', email: 'manager@vcbsalary.vn' },
-  { label: 'Leader', email: 'leader@vcbsalary.vn' },
-  { label: 'Editor', email: 'editor@vcbsalary.vn' },
-  { label: 'Content Creator', email: 'creator@vcbsalary.vn' },
-] as const
 import { getApiErrorMessage } from '@/api/client'
 
 export function LoginPage() {
   const { user, login } = useAuth()
-  const [email, setEmail] = useState('admin@vcbsalary.vn')
-  const [password, setPassword] = useState('Admin@123')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
@@ -118,16 +108,6 @@ export function LoginPage() {
                 {submitting ? 'Đang đăng nhập…' : 'Đăng nhập'}
               </Button>
             </form>
-            <div className="mt-6 border-t border-border pt-5">
-              <p className="mb-3 text-center text-xs font-medium text-muted-foreground">Đăng nhập nhanh bằng tài khoản demo</p>
-              <div className="grid max-h-52 grid-cols-2 gap-2 overflow-y-auto pr-1">
-                {DEMO_ACCOUNTS.map((account) => (
-                  <button key={account.email} type="button" onClick={() => { setEmail(account.email); setPassword('Admin@123'); setError('') }} className="rounded-xl border border-border bg-muted/40 px-3 py-2.5 text-left transition-colors hover:border-primary/30 hover:bg-secondary">
-                    <strong className="block text-xs">{account.label}</strong><span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{account.email}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
           </CardContent>
         </Card>
       </div>
